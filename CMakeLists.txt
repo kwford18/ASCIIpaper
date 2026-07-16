@@ -60,8 +60,10 @@ target_link_libraries(wall-aquarium PRIVATE Engine Worlds)
 # --- Unit Tests ---
 add_executable(EngineTests 
     tests/test_grid.cpp
+    tests/test_timer.cpp
+    tests/test_scene.cpp
 )
-target_link_libraries(EngineTests PRIVATE Engine GTest::gtest_main)
+target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
 
 # Register the test with CTest
 include(GoogleTest)
