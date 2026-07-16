@@ -2,9 +2,11 @@
 #include "engine/window.h"
 #include "engine/renderer.h"
 #include "engine/grid.h"
+#include "engine/timer.h"
+#include "worlds/aquarium.h"
 
 int main(int argc, char* argv[]) {
-    std::cout << "Starting wall-aquarium..." << std::endl;
+    // std::cout << "Starting wall-aquarium..." << std::endl;
 
     // Create a 800x600 window
     Aquarium::Engine::Window window("wall-aquarium", 800, 600);
@@ -27,42 +29,30 @@ int main(int argc, char* argv[]) {
      * Height: 600 / 16 = 37 rows
     */
     Aquarium::Engine::CharacterGrid grid(50, 37);
+    Aquarium::Worlds::AquariumScene scene(50, 37);
 
-    // --- DRAW A TEST SCENE INTO THE GRID ---
-    
-    // Draw a basic border
-    for (int x = 0; x < grid.GetWidth(); ++x) {
-        grid.SetCell(x, 0, '#');
-        grid.SetCell(x, grid.GetHeight() - 1, '#');
-    }
-    for (int y = 0; y < grid.GetHeight(); ++y) {
-        grid.SetCell(0, y, '#');
-        grid.SetCell(grid.GetWidth() - 1, y, '#');
-    }
-    
-    // Draw simple fish shapes
-    grid.SetCell(23, 18, '>');
-    grid.SetCell(24, 18, '<');
-    grid.SetCell(25, 18, '>');
-    grid.SetCell(26, 18, 'O');
-
-    // Draw some bubbles
-    grid.SetCell(27, 16, 'o');
-    grid.SetCell(28, 14, 'O');
-    grid.SetCell(27, 11, 'o');
+    // Create a timer to lock the engine at 60 FPS
+    Aquarium::Engine::Timer timer(60);
+    timer.Start();
 
     // Main Engine Loop
     while (!window.ShouldClose()) {
         // Process Input/OS Events
         window.PollEvents();
 
+        // Update Scene Logic
+        scene.Update(timer.GetDeltaTime());
+
+        // Draw Scene to Grid
+        scene.Draw(grid);
+
         // Render the grid to the screen
         renderer.DrawGrid(grid);
         
-        // Temporarily delay to prevent 100% CPU usage until we implement a fixed timestep
-        SDL_Delay(16); 
+        // Wait for next frame
+        timer.Tick();
     }
 
-    std::cout << "Shutting down gracefully." << std::endl;
+    // std::cout << "Shutting down gracefully." << std::endl;
     return 0;
 }

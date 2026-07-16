@@ -38,21 +38,24 @@ FetchContent_MakeAvailable(SDL3)
 
 # Core Engine Target
 add_library(Engine STATIC 
-    engine/Grid.cpp
-    engine/Window.cpp
+    engine/grid.cpp
+    engine/window.cpp
     engine/renderer.cpp
+    engine/timer.cpp
 )
-
-# Explicitly declare include directories so the test executable can find the headers
-target_include_directories(Engine PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
+target_include_directories(Engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Engine PUBLIC SDL3::SDL3)
+
+# Simulation Worlds Target
+add_library(Worlds STATIC
+    worlds/aquarium.cpp
+)
+target_include_directories(Worlds PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(Worlds PRIVATE Engine)
 
 # Application Executable
 add_executable(wall-aquarium app/main.cpp)
-target_link_libraries(wall-aquarium PRIVATE Engine)
+target_link_libraries(wall-aquarium PRIVATE Engine Worlds)
 
 # --- Unit Tests ---
 add_executable(EngineTests 
