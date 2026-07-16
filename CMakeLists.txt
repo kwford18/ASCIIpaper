@@ -20,12 +20,26 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# Find SDL3
-find_package(SDL3 REQUIRED)
+# Fetch SDL3
+message(STATUS "Fetching SDL3 from source...")
+
+FetchContent_Declare(
+    SDL3
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG        main # Pulls the latest version. You can lock this to a specific release tag later.
+)
+
+# Disable SDL3's internal tests and examples to speed up compile time
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "Disable SDL3 test library" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "Disable SDL3 tests" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL3 examples" FORCE)
+
+FetchContent_MakeAvailable(SDL3)
 
 # Core Engine Target
 add_library(Engine STATIC 
-    engine/Grid.cpp
+    engine/grid.cpp
+    engine/window.cpp
 )
 
 # Explicitly declare include directories so the test executable can find the headers
