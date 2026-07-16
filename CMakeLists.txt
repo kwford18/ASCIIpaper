@@ -38,15 +38,17 @@ FetchContent_MakeAvailable(SDL3)
 
 # Core Engine Target
 add_library(Engine STATIC 
-    engine/grid.cpp
-    engine/window.cpp
+    engine/Grid.cpp
+    engine/Window.cpp
+    engine/renderer.cpp
 )
 
 # Explicitly declare include directories so the test executable can find the headers
 target_include_directories(Engine PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(Engine PRIVATE SDL3::SDL3)
+
+target_link_libraries(Engine PUBLIC SDL3::SDL3)
 
 # Application Executable
 add_executable(wall-aquarium app/main.cpp)
@@ -61,3 +63,13 @@ target_link_libraries(EngineTests PRIVATE Engine GTest::gtest_main)
 # Register the test with CTest
 include(GoogleTest)
 gtest_discover_tests(EngineTests)
+
+# Windows DLL Copy
+# Ensure the SDL3.dll is copied right next to the executable so it can run
+if(WIN32)
+    add_custom_command(TARGET wall-aquarium POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:SDL3::SDL3>
+        $<TARGET_FILE_DIR:wall-aquarium>
+    )
+endif()
