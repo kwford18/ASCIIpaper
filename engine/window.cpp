@@ -21,8 +21,32 @@ namespace Aquarium::Engine {
             return false;
         }
 
-        // Create a resizable window
-        m_window = SDL_CreateWindow(m_title.c_str(), m_width, m_height, SDL_WINDOW_RESIZABLE);
+        /* 
+         * This window is meant to cover the whole desktop background, so size
+         * it to the primary display's actual resolution rather than whatever
+         * fixed size was passed to the constructor. This keeps it in sync
+         * with the WorkerW area AttachToDesktop later reparents it into,
+         * instead of relying on a hardcoded guess like 800x600.
+        */
+        SDL_DisplayID display = SDL_GetPrimaryDisplay();
+        SDL_Rect displayBounds;
+        if (display != 0 && SDL_GetDisplayBounds(display, &displayBounds)) {
+            m_width = displayBounds.w;
+            m_height = displayBounds.h;
+        } else {
+            std::cerr << "SDL_GetDisplayBounds failed: " << SDL_GetError()
+                      << ". Falling back to the size passed to the constructor." << std::endl;
+        }
+
+        /* 
+         * Create a borderless window. It deliberately does NOT use
+         * SDL_WINDOW_TRANSPARENT. That puts the window in DWM's per-pixel-alpha
+         * composited mode, which is designed for top-level windows and doesn't
+         * reliably keep presenting once we reparent this as a WS_CHILD window
+         * under the desktop's WorkerW
+        */
+        m_window = SDL_CreateWindow(m_title.c_str(), m_width, m_height, 
+                                    SDL_WINDOW_BORDERLESS);
         if (!m_window) {
             std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << std::endl;
             return false;

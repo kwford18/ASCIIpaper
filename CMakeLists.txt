@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.20)
-# Updated project name to wall-aquarium
 project(wall-aquarium VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -26,7 +25,7 @@ message(STATUS "Fetching SDL3 from source...")
 FetchContent_Declare(
     SDL3
     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG        main # Pulls the latest version. You can lock this to a specific release tag later.
+    GIT_TAG        main # Pulls the latest version
 )
 
 # Disable SDL3's internal tests and examples to speed up compile time
@@ -53,11 +52,21 @@ add_library(Worlds STATIC
 target_include_directories(Worlds PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Worlds PRIVATE Engine)
 
+# Platform Backend Target
+add_library(Platform STATIC)
+target_include_directories(Platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(Platform PRIVATE SDL3::SDL3)
+
+# Only compile the Windows code if we are building on Windows
+if(WIN32)
+    target_sources(Platform PRIVATE platform/windows_desktop.cpp)
+endif()
+
 # Application Executable
 add_executable(wall-aquarium app/main.cpp)
-target_link_libraries(wall-aquarium PRIVATE Engine Worlds)
+target_link_libraries(wall-aquarium PRIVATE Engine Worlds Platform)
 
-# --- Unit Tests ---
+# Unit Tests
 add_executable(EngineTests 
     tests/test_grid.cpp
     tests/test_timer.cpp

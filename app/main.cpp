@@ -4,6 +4,7 @@
 #include "engine/grid.h"
 #include "engine/timer.h"
 #include "worlds/aquarium.h"
+#include "platform/desktop.h"
 
 int main(int argc, char* argv[]) {
     // std::cout << "Starting wall-aquarium..." << std::endl;
@@ -15,6 +16,9 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    // Send to background on Windows
+    Aquarium::Platform::AttachToDesktop(window.GetNativeWindow());
+
     // Initialize the renderer with the created window
     Aquarium::Engine::Renderer renderer(window.GetNativeWindow());
     if (!renderer.Initialize()) {
@@ -23,13 +27,19 @@ int main(int argc, char* argv[]) {
     }
 
     /* 
-     * Create the static Character Grid
-     * Since the window is 800x600 and cells are scaled to 16x16 pixels:
-     * Width: 800 / 16 = 50 columns
-     * Height: 600 / 16 = 37 rows
+     * Create the Character Grid, sized to match the actual window.
+     * Window::Initialize() sizes the window to the primary display's
+     * real resolution (needed so it lines up with the WorkerW area it gets
+     * attached to). Computed to grid dimensions from the real size
+     * instead of assuming a fixed window size.
+     * SDL_RenderDebugText is an 8x8 pixel font, scaled 2x by the renderer,
+     * so each grid cell is 16x16 pixels.
     */
-    Aquarium::Engine::CharacterGrid grid(50, 37);
-    Aquarium::Worlds::AquariumScene scene(50, 37);
+    const int cellSize = 16;
+    const int cols = window.GetWidth() / cellSize;
+    const int rows = window.GetHeight() / cellSize;
+    Aquarium::Engine::CharacterGrid grid(cols, rows);
+    Aquarium::Worlds::AquariumScene scene(cols, rows);
 
     // Create a timer to lock the engine at 60 FPS
     Aquarium::Engine::Timer timer(60);

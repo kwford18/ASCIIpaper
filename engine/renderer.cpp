@@ -24,15 +24,15 @@ namespace Aquarium::Engine {
     }
 
     void Renderer::DrawGrid(const CharacterGrid& grid) {
-        // Clear the screen to black
+        SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
         SDL_RenderClear(m_renderer);
 
         // Set text color to a soft, terminal green
         SDL_SetRenderDrawColor(m_renderer, 100, 255, 100, 255);
 
-        // SDL_RenderDebugText uses an 8x8 pixel font. 
-        // We will scale the renderer by 2.0 so our grid cells are 16x16 pixels.
+        // SDL_RenderDebugText uses an 8x8 pixel font
+        // Scale the renderer by 2.0 so the grid cells are 16x16 pixels.
         SDL_SetRenderScale(m_renderer, 2.0f, 2.0f);
         
         const int cellWidth = 8;
