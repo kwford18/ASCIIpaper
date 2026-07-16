@@ -1,4 +1,5 @@
 #include "worlds/aquarium.h"
+#include <cmath>
 
 namespace Aquarium::Worlds {
 
@@ -10,6 +11,7 @@ namespace Aquarium::Worlds {
     void AquariumScene::ClearEntities() {
         m_fishes.clear();
         m_bubbles.clear();
+        m_seaweeds.clear();
     }
 
     void AquariumScene::InitializeWorld() {
@@ -36,6 +38,20 @@ namespace Aquarium::Worlds {
         for (int i = 0; i < 12; ++i) {
             m_bubbles.push_back({
                 xDist(m_rng), yDist(m_rng), bSpeedDist(m_rng), sizeDist(m_rng) == 0 ? 'o' : 'O'
+            });
+        }
+
+        // Distribtions for seaweed placement and height
+        std::uniform_int_distribution<int> swXDist(2, m_width - 3);
+        std::uniform_int_distribution<int> swHeightDist(3, 8); 
+        std::uniform_real_distribution<float> swOffsetDist(0.0f, 6.28f);
+
+        // Plant 6 stalks of seaweed at the bottom of the tank
+        for (int i = 0; i < 6; ++i) {
+            m_seaweeds.push_back({
+                swXDist(m_rng),
+                swHeightDist(m_rng),
+                swOffsetDist(m_rng)
             });
         }
     }
@@ -81,6 +97,23 @@ namespace Aquarium::Worlds {
         for (int y = 0; y < m_height; ++y) {
             grid.SetCell(0, y, '#');
             grid.SetCell(m_width - 1, y, '#');
+        }
+
+        // Draw Seaweed
+        for (const auto& weed : m_seaweeds) {
+            // Build the seaweed from the bottom up
+            for (int i = 0; i < weed.height; ++i) {
+                int drawY = (m_height - 2) - i; 
+                
+                // Calculate a gentle sway using the accumulator and the segment height
+                float sway = std::sin(m_timeAccumulator * 2.0f + weed.swayOffset + i * 0.5f);
+                
+                char c = '|';
+                if (sway > 0.4f) c = '/';
+                else if (sway < -0.4f) c = '\\';
+                
+                grid.SetCell(weed.x, drawY, c);
+            }
         }
 
         // Draw Bubbles

@@ -25,6 +25,13 @@ namespace Aquarium::Worlds {
         char symbol; // 'o' or 'O'
     };
 
+    // Data structure for a single seaweed
+    struct Seaweed {
+        int x;
+        int height;
+        float swayOffset; // Random offset so they don't sway in unison
+    };
+
     class AquariumScene {
     public:
         AquariumScene(int width, int height);
@@ -50,8 +57,8 @@ namespace Aquarium::Worlds {
         // Entity lists
         std::vector<Fish> m_fishes;
         std::vector<Bubble> m_bubbles;
+        std::vector<Seaweed> m_seaweeds;
         
-        // Standard C++ random number generator
         std::mt19937 m_rng;
         
         // Helper to spawn initial entities
