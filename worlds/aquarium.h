@@ -11,11 +11,26 @@ namespace Aquarium::Worlds {
         Right = 1
     };
 
+    enum class VerticalDirection {
+        Up = -1,
+        Down = 1
+    };
+
     // Data structure for a single fish
     struct Fish {
         float x, y;
-        float speed;
+        float vx, vy;
         Direction direction;
+        float wobbleOffset;
+        float changeTimer;    // Countdown until the fish changes its vertical path
+    };
+
+    // Data structure for a single jellyfish
+    struct Jellyfish {
+        float x, y;
+        float speed;
+        float pulseOffset;
+        VerticalDirection verticalDir;
     };
 
     // Data structure for a single bubble
@@ -58,6 +73,7 @@ namespace Aquarium::Worlds {
         std::vector<Fish> m_fishes;
         std::vector<Bubble> m_bubbles;
         std::vector<Seaweed> m_seaweeds;
+        std::vector<Jellyfish> m_jellyfishes;
         
         std::mt19937 m_rng;
         

@@ -12,22 +12,35 @@ namespace Aquarium::Worlds {
         m_fishes.clear();
         m_bubbles.clear();
         m_seaweeds.clear();
+        m_jellyfishes.clear();
     }
 
     void AquariumScene::InitializeWorld() {
         // Setup random distributions to keep entities inside the boundaries
         std::uniform_real_distribution<float> xDist(2.0f, m_width - 5.0f);
-        std::uniform_real_distribution<float> yDist(2.0f, m_height - 3.0f);
-        std::uniform_real_distribution<float> fSpeedDist(2.0f, 6.0f);
+        std::uniform_real_distribution<float> yDist(4.0f, m_height - 6.0f); // Keep them away from extreme edges
+        std::uniform_real_distribution<float> fSpeedDist(2.0f, 5.0f);
+        std::uniform_real_distribution<float> phaseDist(0.0f, 6.28f); // 0 to 2*PI for offsets
         std::uniform_int_distribution<int> dirDist(0, 1);
 
-        // Randomly spawn 5 fish
+        // For random wandering
+        std::uniform_real_distribution<float> vyDist(-1.5f, 1.5f);
+        std::uniform_real_distribution<float> timerDist(1.0f, 5.0f);
+
+        // Spawn Fish with wobble offsets
         for (int i = 0; i < 5; ++i) {
+            float vx = fSpeedDist(m_rng);
+            Direction dir = dirDist(m_rng) == 0 ? Direction::Left : Direction::Right;
+            if (dir == Direction::Left) vx = -vx;
+
             m_fishes.push_back({
                 xDist(m_rng), 
                 yDist(m_rng), 
-                fSpeedDist(m_rng), 
-                dirDist(m_rng) == 0 ? Direction::Left : Direction::Right
+                vx, 
+                vyDist(m_rng), 
+                dir,
+                phaseDist(m_rng),
+                timerDist(m_rng) // Randomize when they first change direction
             });
         }
 
@@ -54,6 +67,18 @@ namespace Aquarium::Worlds {
                 swOffsetDist(m_rng)
             });
         }
+
+        // Spawn 3 jellyfish with random positions, speeds, and pulse offsets
+        std::uniform_real_distribution<float> jSpeedDist(0.5f, 1.5f);
+        for (int i = 0; i < 3; ++i) {
+            m_jellyfishes.push_back({
+                xDist(m_rng), 
+                yDist(m_rng), 
+                jSpeedDist(m_rng), 
+                phaseDist(m_rng),
+                VerticalDirection::Up // Start by floating upwards
+            });
+        }
     }
 
     void AquariumScene::Update(float deltaTime) {
@@ -61,15 +86,38 @@ namespace Aquarium::Worlds {
 
         // Move Fish
         for (auto& fish : m_fishes) {
-            fish.x += fish.speed * static_cast<int>(fish.direction) * deltaTime;
             
-            // Wall collisions (fish is 3 characters long)
+            // Randomly wander up and down over time
+            fish.changeTimer -= deltaTime;
+            if (fish.changeTimer <= 0.0f) {
+                std::uniform_real_distribution<float> vyDist(-1.5f, 1.5f);
+                std::uniform_real_distribution<float> timerDist(2.0f, 6.0f);
+                fish.vy = vyDist(m_rng);
+                fish.changeTimer = timerDist(m_rng);
+            }
+
+            // Apply 2D Velocity
+            fish.x += fish.vx * deltaTime;
+            fish.y += fish.vy * deltaTime;
+            
+            // X-Axis Wall Bouncing
             if (fish.x <= 1.0f) {
                 fish.x = 1.0f;
-                fish.direction = Direction::Right;
+                fish.vx = std::abs(fish.vx); // Force right
+                fish.direction = Direction::Right; 
             } else if (fish.x >= m_width - 4.0f) {
                 fish.x = m_width - 4.0f;
-                fish.direction = Direction::Left;
+                fish.vx = -std::abs(fish.vx); // Force left
+                fish.direction = Direction::Left;  
+            }
+
+            // Y-Axis Wall Bouncing
+            if (fish.y <= 1.0f) {
+                fish.y = 1.0f;
+                fish.vy = std::abs(fish.vy); // Force down
+            } else if (fish.y >= m_height - 3.0f) {
+                fish.y = m_height - 3.0f;
+                fish.vy = -std::abs(fish.vy); // Force up
             }
         }
 
@@ -83,6 +131,34 @@ namespace Aquarium::Worlds {
                 std::uniform_real_distribution<float> xDist(1.0f, m_width - 2.0f);
                 bubble.x = xDist(m_rng);
             }
+        }
+
+        // Move jellyfish
+        for (auto& jelly : m_jellyfishes) {
+            // Pulse logic
+            float pulse = std::sin(m_timeAccumulator * 3.0f + jelly.pulseOffset);
+            float pulseMultiplier = 1.0f + 0.8f * pulse;
+            
+            // Apply speed combined with their current vertical direction
+            jelly.y += jelly.speed * pulseMultiplier * static_cast<float>(jelly.verticalDir) * deltaTime;
+            
+            // Gentle horizontal drift
+            jelly.x += std::cos(m_timeAccumulator * 0.5f + jelly.pulseOffset) * 0.3f * deltaTime;
+
+            // Bounce off top
+            if (jelly.y <= 1.0f) {
+                jelly.y = 1.0f;
+                jelly.verticalDir = VerticalDirection::Down; // Turn downwards
+            }
+            // Bounce off bottom (keep them floating above the seaweed roots)
+            else if (jelly.y >= m_height - 4.0f) {
+                jelly.y = m_height - 4.0f;
+                jelly.verticalDir = VerticalDirection::Up;
+            }
+            
+            // Keep bounds horizontal
+            if (jelly.x <= 1.0f) jelly.x = 1.0f;
+            if (jelly.x >= m_width - 3.0f) jelly.x = m_width - 3.0f;
         }
     }
 
@@ -126,19 +202,45 @@ namespace Aquarium::Worlds {
         // Draw Fish
         for (const auto& fish : m_fishes) {
             int ix = static_cast<int>(fish.x);
-            int iy = static_cast<int>(fish.y);
             
-            // Safety bounds check
+            // Add a tiny sine wobble to the actual Y coordinate just to make their tails look alive
+            int iy = static_cast<int>(fish.y + std::sin(m_timeAccumulator * 4.0f + fish.wobbleOffset) * 0.3f); 
+            
             if (ix > 0 && ix < m_width - 3 && iy > 0 && iy < m_height - 1) {
-                if (fish.direction == Direction::Right) {   // Facing Right
+                if (fish.direction == Direction::Right) { 
                     grid.SetCell(ix, iy, '>');
                     grid.SetCell(ix + 1, iy, '<');
                     grid.SetCell(ix + 2, iy, '>');
-                } else {                                    // Facing Left
+                } else { 
                     grid.SetCell(ix, iy, '<');
                     grid.SetCell(ix + 1, iy, '>');
                     grid.SetCell(ix + 2, iy, '<');
                 }
+            }
+        }
+
+        // Jellyfish - drawn as a 3x2 sprite
+        // (o)
+        // / \ .
+        for (const auto& jelly : m_jellyfishes) {
+            int ix = static_cast<int>(jelly.x);
+            int iy = static_cast<int>(jelly.y);
+            
+            if (ix > 0 && ix < m_width - 3 && iy > 0 && iy < m_height - 2) {
+                
+                // Determine animation frame based on the pulse sine wave!
+                float pulse = std::sin(m_timeAccumulator * 3.0f + jelly.pulseOffset);
+                char tentacleLeft = (pulse > 0.0f) ? '/' : '|';
+                char tentacleRight = (pulse > 0.0f) ? '\\' : '|';
+
+                // Top bell
+                grid.SetCell(ix, iy, '(');
+                grid.SetCell(ix + 1, iy, 'o');
+                grid.SetCell(ix + 2, iy, ')');
+                
+                // Animated tentacles
+                grid.SetCell(ix, iy + 1, tentacleLeft);
+                grid.SetCell(ix + 2, iy + 1, tentacleRight);
             }
         }
     }
