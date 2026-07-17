@@ -1,4 +1,5 @@
 #include <iostream>
+#include <SDL3/SDL_main.h>
 #include "engine/window.h"
 #include "engine/renderer.h"
 #include "engine/grid.h"
@@ -8,9 +9,19 @@
 #include "platform/desktop.h"
 
 int main(int argc, char* argv[]) {
-    // Load Configuration
+    // Determine the absolute path to the executable's folder
+    std::string configPath = "config.ini";
+    
+    const char* basePath = SDL_GetBasePath(); 
+    
+    if (basePath) {
+        // basePath includes the trailing slash (e.g., "C:\...\build\Debug\")
+        configPath = std::string(basePath) + "config.ini";
+    }
+
+    // Load Configuration using the absolute path
     Aquarium::Engine::Config config;
-    if (config.Load("config.ini")) {
+    if (config.Load(configPath)) {
         std::cout << "Loaded config.ini successfully.\n";
     } else {
         std::cout << "No config.ini found. Using default engine settings.\n";
