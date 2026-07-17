@@ -3,28 +3,40 @@
 #include "engine/renderer.h"
 #include "engine/grid.h"
 #include "engine/timer.h"
+#include "engine/config.h"
 #include "worlds/aquarium.h"
 #include "platform/desktop.h"
 
 int main(int argc, char* argv[]) {
-    // std::cout << "Starting wall-aquarium..." << std::endl;
-
-    // Create a 800x600 window
-    Aquarium::Engine::Window window("wall-aquarium", 800, 600);
-    if (!window.Initialize()) {
-        std::cerr << "Failed to initialize the engine window." << std::endl;
-        return -1;
+    // Load Configuration
+    Aquarium::Engine::Config config;
+    if (config.Load("config.ini")) {
+        std::cout << "Loaded config.ini successfully.\n";
+    } else {
+        std::cout << "No config.ini found. Using default engine settings.\n";
     }
 
-    // Send to background on Windows
+    // Extract variables with defaults
+    int targetFps = config.GetInt("target_fps", 60);
+    int fishCount = config.GetInt("fish_count", 6);
+    int bubbleCount = config.GetInt("bubble_count", 15);
+    int jellyCount = config.GetInt("jellyfish_count", 3);
+
+    // Initialize Engine
+    Aquarium::Engine::Window window("wall-aquarium", 1920, 1080);
+    if (!window.Initialize()) {
+        return -1;
+    }
     Aquarium::Platform::AttachToDesktop(window.GetNativeWindow());
 
-    // Initialize the renderer with the created window
     Aquarium::Engine::Renderer renderer(window.GetNativeWindow());
     if (!renderer.Initialize()) {
-        std::cerr << "Failed to initialize the renderer." << std::endl;
         return -1;
     }
+
+    // Use our config variables!
+    Aquarium::Engine::CharacterGrid grid(120, 67); // 1920/16 and 1080/16
+    Aquarium::Worlds::AquariumScene scene(120, 67, fishCount, bubbleCount, jellyCount);
 
     /* 
      * Create the Character Grid, sized to match the actual window.
@@ -35,14 +47,9 @@ int main(int argc, char* argv[]) {
      * SDL_RenderDebugText is an 8x8 pixel font, scaled 2x by the renderer,
      * so each grid cell is 16x16 pixels.
     */
-    const int cellSize = 16;
-    const int cols = window.GetWidth() / cellSize;
-    const int rows = window.GetHeight() / cellSize;
-    Aquarium::Engine::CharacterGrid grid(cols, rows);
-    Aquarium::Worlds::AquariumScene scene(cols, rows);
 
-    // Create a timer to lock the engine at 60 FPS
-    Aquarium::Engine::Timer timer(60);
+    // Apply adjustable framerate
+    Aquarium::Engine::Timer timer(targetFps);
     timer.Start();
 
     // Main Engine Loop

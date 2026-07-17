@@ -3,9 +3,9 @@
 
 namespace Aquarium::Worlds {
 
-    AquariumScene::AquariumScene(int width, int height) 
+    AquariumScene::AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount) 
         : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_rng(std::random_device{}()) {
-        InitializeWorld();
+        InitializeWorld(fishCount, bubbleCount, jellyCount);
     }
 
     void AquariumScene::ClearEntities() {
@@ -15,7 +15,7 @@ namespace Aquarium::Worlds {
         m_jellyfishes.clear();
     }
 
-    void AquariumScene::InitializeWorld() {
+    void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCount) {
         // Setup random distributions to keep entities inside the boundaries
         std::uniform_real_distribution<float> xDist(2.0f, m_width - 5.0f);
         std::uniform_real_distribution<float> yDist(4.0f, m_height - 6.0f); // Keep them away from extreme edges
@@ -31,7 +31,7 @@ namespace Aquarium::Worlds {
         std::uniform_int_distribution<int> colorDist(100, 255);
 
         // Spawn Fish with wobble offsets
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < fishCount; ++i) {
             float vx = fSpeedDist(m_rng);
             Direction dir = dirDist(m_rng) == 0 ? Direction::Left : Direction::Right;
             if (dir == Direction::Left) vx = -vx;
@@ -49,8 +49,8 @@ namespace Aquarium::Worlds {
         std::uniform_real_distribution<float> bSpeedDist(1.0f, 3.0f);
         std::uniform_int_distribution<int> sizeDist(0, 1);
 
-        // Randomly spawn 12 bubbles
-        for (int i = 0; i < 12; ++i) {
+        // Spawn bubbles
+        for (int i = 0; i < bubbleCount; ++i) {
             m_bubbles.push_back({
                 xDist(m_rng), yDist(m_rng), bSpeedDist(m_rng), sizeDist(m_rng) == 0 ? 'o' : 'O'
             });
@@ -70,9 +70,9 @@ namespace Aquarium::Worlds {
             });
         }
 
-        // Spawn 3 jellyfish with random positions, speeds, and pulse offsets
+        // Spawn jellyfish with random positions, speeds, and pulse offsets
         std::uniform_real_distribution<float> jSpeedDist(0.5f, 1.5f);
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < jellyCount; ++i) {
             m_jellyfishes.push_back({
                 xDist(m_rng), 
                 yDist(m_rng), 

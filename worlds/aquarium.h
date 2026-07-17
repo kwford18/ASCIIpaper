@@ -50,7 +50,7 @@ namespace Aquarium::Worlds {
 
     class AquariumScene {
     public:
-        AquariumScene(int width, int height);
+        AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount);
 
         // Processes simulation logic (fish swimming, bubbles rising)
         void Update(float deltaTime);
@@ -79,7 +79,7 @@ namespace Aquarium::Worlds {
         std::mt19937 m_rng;
         
         // Helper to spawn initial entities
-        void InitializeWorld();
+        void InitializeWorld(int fishCount, int bubbleCount, int jellyCount);
     };
 
 } // namespace Aquarium::Worlds

@@ -41,6 +41,7 @@ add_library(Engine STATIC
     engine/window.cpp
     engine/renderer.cpp
     engine/timer.cpp
+    engine/config.cpp
 )
 target_include_directories(Engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Engine PUBLIC SDL3::SDL3)
@@ -71,6 +72,7 @@ add_executable(EngineTests
     tests/test_grid.cpp
     tests/test_timer.cpp
     tests/test_scene.cpp
+    tests/test_config.cpp
 )
 
 target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
