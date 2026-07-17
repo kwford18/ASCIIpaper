@@ -24,38 +24,32 @@ namespace Aquarium::Engine {
     }
 
     void Renderer::DrawGrid(const CharacterGrid& grid) {
-        SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+        // Clear the screen to invisible
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0); 
         SDL_RenderClear(m_renderer);
 
-        // Set text color to a soft, terminal green
-        SDL_SetRenderDrawColor(m_renderer, 100, 255, 100, 255);
-
-        // SDL_RenderDebugText uses an 8x8 pixel font
-        // Scale the renderer by 2.0 so the grid cells are 16x16 pixels.
         SDL_SetRenderScale(m_renderer, 2.0f, 2.0f);
         
         const int cellWidth = 8;
         const int cellHeight = 8;
 
-        // Iterate through the grid and draw the characters
         for (int y = 0; y < grid.GetHeight(); ++y) {
             for (int x = 0; x < grid.GetWidth(); ++x) {
-                char c = grid.GetCell(x, y).character;
                 
-                // Only draw non-empty characters to save rendering time
-                if (c != ' ') {
-                    // SDL_RenderDebugText expects a null-terminated string
-                    char str[2] = {c, '\0'};
+                // Grab the entire Cell struct instead of just the character
+                auto cell = grid.GetCell(x, y);
+                
+                if (cell.character != ' ') {
+                    // Apply the cell's specific RGB color before drawing
+                    SDL_SetRenderDrawColor(m_renderer, cell.r, cell.g, cell.b, 255);
+                    
+                    char str[2] = {cell.character, '\0'};
                     SDL_RenderDebugText(m_renderer, x * cellWidth, y * cellHeight, str);
                 }
             }
         }
 
-        // Reset the scale for the next frame
         SDL_SetRenderScale(m_renderer, 1.0f, 1.0f);
-
-        // Swap the buffers to present the drawn frame to the screen
         SDL_RenderPresent(m_renderer);
     }
 

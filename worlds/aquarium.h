@@ -19,10 +19,11 @@ namespace Aquarium::Worlds {
     // Data structure for a single fish
     struct Fish {
         float x, y;
-        float vx, vy;
+        float vx, vy;         
         Direction direction;
         float wobbleOffset;
-        float changeTimer;    // Countdown until the fish changes its vertical path
+        float changeTimer;    
+        uint8_t r, g, b;
     };
 
     // Data structure for a single jellyfish

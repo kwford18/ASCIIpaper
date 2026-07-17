@@ -27,6 +27,9 @@ namespace Aquarium::Worlds {
         std::uniform_real_distribution<float> vyDist(-1.5f, 1.5f);
         std::uniform_real_distribution<float> timerDist(1.0f, 5.0f);
 
+        // For color
+        std::uniform_int_distribution<int> colorDist(100, 255);
+
         // Spawn Fish with wobble offsets
         for (int i = 0; i < 5; ++i) {
             float vx = fSpeedDist(m_rng);
@@ -34,13 +37,12 @@ namespace Aquarium::Worlds {
             if (dir == Direction::Left) vx = -vx;
 
             m_fishes.push_back({
-                xDist(m_rng), 
-                yDist(m_rng), 
-                vx, 
-                vyDist(m_rng), 
-                dir,
-                phaseDist(m_rng),
-                timerDist(m_rng) // Randomize when they first change direction
+                xDist(m_rng), yDist(m_rng), vx, vyDist(m_rng), dir, phaseDist(m_rng), timerDist(m_rng),
+
+                // Assign random colors!
+                static_cast<uint8_t>(colorDist(m_rng)), 
+                static_cast<uint8_t>(colorDist(m_rng)), 
+                static_cast<uint8_t>(colorDist(m_rng))
             });
         }
 
@@ -164,16 +166,6 @@ namespace Aquarium::Worlds {
 
     void AquariumScene::Draw(Engine::CharacterGrid& grid) {
         grid.Clear();
-        
-        // Draw the boundaries
-        for (int x = 0; x < m_width; ++x) {
-            grid.SetCell(x, 0, '#');
-            grid.SetCell(x, m_height - 1, '#');
-        }
-        for (int y = 0; y < m_height; ++y) {
-            grid.SetCell(0, y, '#');
-            grid.SetCell(m_width - 1, y, '#');
-        }
 
         // Draw Seaweed
         for (const auto& weed : m_seaweeds) {
@@ -188,7 +180,7 @@ namespace Aquarium::Worlds {
                 if (sway > 0.4f) c = '/';
                 else if (sway < -0.4f) c = '\\';
                 
-                grid.SetCell(weed.x, drawY, c);
+                grid.SetCell(weed.x, drawY, c, 50, 205, 50);
             }
         }
 
@@ -196,7 +188,7 @@ namespace Aquarium::Worlds {
         for (const auto& bubble : m_bubbles) {
             int ix = static_cast<int>(bubble.x);
             int iy = static_cast<int>(bubble.y);
-            grid.SetCell(ix, iy, bubble.symbol);
+            grid.SetCell(ix, iy, bubble.symbol, 135, 206, 235);
         }
 
         // Draw Fish
@@ -208,13 +200,13 @@ namespace Aquarium::Worlds {
             
             if (ix > 0 && ix < m_width - 3 && iy > 0 && iy < m_height - 1) {
                 if (fish.direction == Direction::Right) { 
-                    grid.SetCell(ix, iy, '>');
-                    grid.SetCell(ix + 1, iy, '<');
-                    grid.SetCell(ix + 2, iy, '>');
+                    grid.SetCell(ix, iy, '>', fish.r, fish.g, fish.b);
+                    grid.SetCell(ix + 1, iy, '<', fish.r, fish.g, fish.b);
+                    grid.SetCell(ix + 2, iy, '>', fish.r, fish.g, fish.b);
                 } else { 
-                    grid.SetCell(ix, iy, '<');
-                    grid.SetCell(ix + 1, iy, '>');
-                    grid.SetCell(ix + 2, iy, '<');
+                    grid.SetCell(ix, iy, '<', fish.r, fish.g, fish.b);
+                    grid.SetCell(ix + 1, iy, '>', fish.r, fish.g, fish.b);
+                    grid.SetCell(ix + 2, iy, '<', fish.r, fish.g, fish.b);
                 }
             }
         }
@@ -230,17 +222,16 @@ namespace Aquarium::Worlds {
                 
                 // Determine animation frame based on the pulse sine wave!
                 float pulse = std::sin(m_timeAccumulator * 3.0f + jelly.pulseOffset);
-                char tentacleLeft = (pulse > 0.0f) ? '/' : '|';
-                char tentacleRight = (pulse > 0.0f) ? '\\' : '|';
+                char tentacle = (pulse > 0.0f) ? '|' : '~';
 
                 // Top bell
-                grid.SetCell(ix, iy, '(');
-                grid.SetCell(ix + 1, iy, 'o');
-                grid.SetCell(ix + 2, iy, ')');
+                grid.SetCell(ix, iy, '(', 218, 112, 214);
+                grid.SetCell(ix + 1, iy, '_', 218, 112, 214);
+                grid.SetCell(ix + 2, iy, ')', 218, 112, 214);
                 
                 // Animated tentacles
-                grid.SetCell(ix, iy + 1, tentacleLeft);
-                grid.SetCell(ix + 2, iy + 1, tentacleRight);
+                grid.SetCell(ix, iy + 1, tentacle, 218, 112, 214);
+                grid.SetCell(ix + 2, iy + 1, tentacle, 218, 112, 214);
             }
         }
     }

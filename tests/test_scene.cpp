@@ -19,17 +19,8 @@ TEST(AquariumSceneTest, DrawPopulatesGridBoundaries) {
 
     scene.Draw(grid);
     
-    // Verify the Corners are '#'
-    EXPECT_EQ(grid.GetCell(0, 0).character, '#');
-    EXPECT_EQ(grid.GetCell(9, 0).character, '#');
-    EXPECT_EQ(grid.GetCell(0, 9).character, '#');
-    EXPECT_EQ(grid.GetCell(9, 9).character, '#');
-
-    // Verify edges are '#'
-    EXPECT_EQ(grid.GetCell(5, 0).character, '#'); // Top edge
-    EXPECT_EQ(grid.GetCell(0, 5).character, '#'); // Left edge
-
-    // Verify the inner water is empty space ' '
+    EXPECT_EQ(grid.GetCell(0, 0).character, ' ');
+    EXPECT_EQ(grid.GetCell(9, 9).character, ' ');
     EXPECT_EQ(grid.GetCell(5, 5).character, ' ');
 }
 

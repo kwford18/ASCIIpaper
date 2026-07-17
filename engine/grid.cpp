@@ -7,8 +7,17 @@ namespace Aquarium::Engine {
     }
 
     void CharacterGrid::SetCell(int x, int y, char c) {
+        // Fallback to our classic green if no color is provided
+        SetCell(x, y, c, 100, 255, 100); 
+    }
+
+    void CharacterGrid::SetCell(int x, int y, char c, uint8_t r, uint8_t g, uint8_t b) {
         if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
-            m_cells[y * m_width + x].character = c;
+            int index = y * m_width + x;
+            m_cells[index].character = c;
+            m_cells[index].r = r;
+            m_cells[index].g = g;
+            m_cells[index].b = b;
         }
     }
 
