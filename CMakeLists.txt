@@ -64,6 +64,7 @@ if(WIN32)
 endif()
 
 # Application Executable
+# The WIN32 tells Windows to hide the console window
 add_executable(wall-aquarium WIN32 app/main.cpp)
 target_link_libraries(wall-aquarium PRIVATE Engine Worlds Platform)
 
