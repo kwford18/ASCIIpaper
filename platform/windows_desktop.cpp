@@ -21,8 +21,40 @@ namespace Aquarium::Platform {
         HWND g_trayHwnd = nullptr;
 
         LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-            return DefWindowProcW(hwnd, msg, wParam, lParam);
+        switch (msg) {
+            case WM_TRAYICON: {
+                UINT mouseMsg = LOWORD(lParam);
+                if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
+                    POINT pt;
+                    GetCursorPos(&pt);
+
+                    HMENU menu = CreatePopupMenu();
+                    AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit wall-aquarium");
+
+                    // Required so the menu closes properly if the user clicks away
+                    SetForegroundWindow(hwnd);
+                    TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, NULL);
+                    DestroyMenu(menu);
+                }
+                return 0; // Handled
+            }
+            case WM_COMMAND: {
+                if (LOWORD(wParam) == ID_TRAY_EXIT) {
+                    g_shouldQuit = true;
+                    return 0; // Handled
+                }
+                break;
+            }
+            case WM_HOTKEY: {
+                if (wParam == HOTKEY_ID_QUIT) {
+                    g_shouldQuit = true;
+                    return 0; // Handled
+                }
+                break;
+            }
         }
+        return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
 
         /* 
          * The tray icon needs an owner window that can actually become the
@@ -40,52 +72,52 @@ namespace Aquarium::Platform {
             wc.lpfnWndProc = TrayWndProc;
             wc.hInstance = GetModuleHandleW(NULL);
             wc.lpszClassName = kClassName;
-            RegisterClassW(&wc); // ignore failure if already registered
+            RegisterClassW(&wc); 
 
             return CreateWindowExW(WS_EX_TOOLWINDOW, kClassName, L"", WS_POPUP,
                                     0, 0, 0, 0, NULL, NULL, wc.hInstance, NULL);
         }
 
-        /*
-         * Called by SDL before it processes each raw Win32 message, so we can
-         * react to tray icon clicks and the global hotkey without SDL knowing
-         * or caring about either.
-        */
-        bool SDLCALL Win32MessageHook(void* /*userdata*/, MSG* msg) {
-            switch (msg->message) {
-                case WM_TRAYICON: {
-                    UINT mouseMsg = LOWORD(msg->lParam);
-                    if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
-                        POINT pt;
-                        GetCursorPos(&pt);
+        // /*
+        //  * Called by SDL before it processes each raw Win32 message, so we can
+        //  * react to tray icon clicks and the global hotkey without SDL knowing
+        //  * or caring about either.
+        // */
+        // bool SDLCALL Win32MessageHook(void* /*userdata*/, MSG* msg) {
+        //     switch (msg->message) {
+        //         case WM_TRAYICON: {
+        //             UINT mouseMsg = LOWORD(msg->lParam);
+        //             if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
+        //                 POINT pt;
+        //                 GetCursorPos(&pt);
 
-                        HMENU menu = CreatePopupMenu();
-                        AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit wall-aquarium");
+        //                 HMENU menu = CreatePopupMenu();
+        //                 AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit wall-aquarium");
 
-                        // Required so the menu closes properly if the user clicks away
-                        SetForegroundWindow(msg->hwnd);
-                        TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, msg->hwnd, NULL);
-                        DestroyMenu(menu);
-                    }
-                    return false; // handled, don't let SDL process it further
-                }
-                case WM_COMMAND: {
-                    if (LOWORD(msg->wParam) == ID_TRAY_EXIT) {
-                        g_shouldQuit = true;
-                        return false;
-                    }
-                    break;
-                }
-                case WM_HOTKEY: {
-                    if (msg->wParam == HOTKEY_ID_QUIT) {
-                        g_shouldQuit = true;
-                        return false;
-                    }
-                    break;
-                }
-            }
-            return true; // let SDL handle everything else as normal
-        }
+        //                 // Required so the menu closes properly if the user clicks away
+        //                 SetForegroundWindow(msg->hwnd);
+        //                 TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, msg->hwnd, NULL);
+        //                 DestroyMenu(menu);
+        //             }
+        //             return false; // handled, don't let SDL process it further
+        //         }
+        //         case WM_COMMAND: {
+        //             if (LOWORD(msg->wParam) == ID_TRAY_EXIT) {
+        //                 g_shouldQuit = true;
+        //                 return false;
+        //             }
+        //             break;
+        //         }
+        //         case WM_HOTKEY: {
+        //             if (msg->wParam == HOTKEY_ID_QUIT) {
+        //                 g_shouldQuit = true;
+        //                 return false;
+        //             }
+        //             break;
+        //         }
+        //     }
+        //     return true; // let SDL handle everything else as normal
+        // }
     }
 
     bool ShouldQuit() {
@@ -257,8 +289,6 @@ namespace Aquarium::Platform {
          * this window has no border, no taskbar entry, and is click-through,
          * there'd otherwise be no way to close it short of Task Manager.
         */
-        SDL_SetWindowsMessageHook(Win32MessageHook, nullptr);
-
         g_trayHwnd = CreateTrayWindow();
         if (!g_trayHwnd) {
             std::cerr << "Failed to create tray helper window. GetLastError=" << GetLastError() << std::endl;
@@ -297,7 +327,7 @@ namespace Aquarium::Platform {
             Shell_NotifyIconW(NIM_SETVERSION, &g_trayIcon);
         }
 
-        if (!RegisterHotKey(NULL, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
+        if (!RegisterHotKey(g_trayHwnd, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
             std::cerr << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError() << std::endl;
         }
     }
@@ -307,7 +337,7 @@ namespace Aquarium::Platform {
             Shell_NotifyIconW(NIM_DELETE, &g_trayIcon);
             g_trayIconAdded = false;
         }
-        UnregisterHotKey(NULL, HOTKEY_ID_QUIT);
+        UnregisterHotKey(g_trayHwnd, HOTKEY_ID_QUIT);
         if (g_trayHwnd) {
             DestroyWindow(g_trayHwnd);
             g_trayHwnd = nullptr;

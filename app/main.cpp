@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     timer.Start();
 
     // Main Engine Loop
-    while (!window.ShouldClose()) {
+    while (!window.ShouldClose() && !Aquarium::Platform::ShouldQuit()) {
         // Process Input/OS Events
         window.PollEvents();
 

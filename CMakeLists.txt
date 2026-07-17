@@ -72,11 +72,11 @@ add_executable(EngineTests
     tests/test_timer.cpp
     tests/test_scene.cpp
 )
+
 target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
 
 # Register the test with CTest
 include(GoogleTest)
-gtest_discover_tests(EngineTests)
 
 # Windows DLL Copy
 # Ensure the SDL3.dll is copied right next to the executables so they can run
@@ -95,3 +95,5 @@ if(WIN32)
         $<TARGET_FILE_DIR:EngineTests>
     )
 endif()
+
+gtest_discover_tests(EngineTests)
