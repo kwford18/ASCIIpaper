@@ -5,8 +5,92 @@
 // Include the Windows API
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 
 namespace Aquarium::Platform {
+
+    namespace {
+        constexpr UINT WM_TRAYICON = WM_APP + 1;
+        constexpr UINT TRAY_UID = 1;
+        constexpr UINT ID_TRAY_EXIT = 1001;
+        constexpr int HOTKEY_ID_QUIT = 1;
+
+        NOTIFYICONDATAW g_trayIcon = {};
+        bool g_trayIconAdded = false;
+        volatile bool g_shouldQuit = false;
+        HWND g_trayHwnd = nullptr;
+
+        LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+            return DefWindowProcW(hwnd, msg, wParam, lParam);
+        }
+
+        /* 
+         * The tray icon needs an owner window that can actually become the
+         * foreground window so its popup menu behaves correctly (dismisses on
+         * click-away and delivers WM_COMMAND for the clicked item). The
+         * wallpaper window itself is WS_CHILD now, and WS_CHILD windows can
+         * never become the foreground window - that's what was breaking the
+         * menu. So a small, invisible, top-level window i created
+         * just to own the tray icon and its menu.
+        */
+        HWND CreateTrayWindow() {
+            static const wchar_t* kClassName = L"WallAquariumTrayWindow";
+
+            WNDCLASSW wc = {};
+            wc.lpfnWndProc = TrayWndProc;
+            wc.hInstance = GetModuleHandleW(NULL);
+            wc.lpszClassName = kClassName;
+            RegisterClassW(&wc); // ignore failure if already registered
+
+            return CreateWindowExW(WS_EX_TOOLWINDOW, kClassName, L"", WS_POPUP,
+                                    0, 0, 0, 0, NULL, NULL, wc.hInstance, NULL);
+        }
+
+        /*
+         * Called by SDL before it processes each raw Win32 message, so we can
+         * react to tray icon clicks and the global hotkey without SDL knowing
+         * or caring about either.
+        */
+        bool SDLCALL Win32MessageHook(void* /*userdata*/, MSG* msg) {
+            switch (msg->message) {
+                case WM_TRAYICON: {
+                    UINT mouseMsg = LOWORD(msg->lParam);
+                    if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
+                        POINT pt;
+                        GetCursorPos(&pt);
+
+                        HMENU menu = CreatePopupMenu();
+                        AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit wall-aquarium");
+
+                        // Required so the menu closes properly if the user clicks away
+                        SetForegroundWindow(msg->hwnd);
+                        TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, msg->hwnd, NULL);
+                        DestroyMenu(menu);
+                    }
+                    return false; // handled, don't let SDL process it further
+                }
+                case WM_COMMAND: {
+                    if (LOWORD(msg->wParam) == ID_TRAY_EXIT) {
+                        g_shouldQuit = true;
+                        return false;
+                    }
+                    break;
+                }
+                case WM_HOTKEY: {
+                    if (msg->wParam == HOTKEY_ID_QUIT) {
+                        g_shouldQuit = true;
+                        return false;
+                    }
+                    break;
+                }
+            }
+            return true; // let SDL handle everything else as normal
+        }
+    }
+
+    bool ShouldQuit() {
+        return g_shouldQuit;
+    }
 
     // A callback used to search through active Windows to find the one rendering desktop icons
     BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
@@ -165,6 +249,69 @@ namespace Aquarium::Platform {
         SetWindowLongW(sdlHwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW);
         SetWindowPos(sdlHwnd, NULL, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE);
+
+        
+        /*
+         * Set up a way to actually stop the program: a system tray icon with
+         * an Exit option, plus a Ctrl+Alt+Q global hotkey as a backup. Since
+         * this window has no border, no taskbar entry, and is click-through,
+         * there'd otherwise be no way to close it short of Task Manager.
+        */
+        SDL_SetWindowsMessageHook(Win32MessageHook, nullptr);
+
+        g_trayHwnd = CreateTrayWindow();
+        if (!g_trayHwnd) {
+            std::cerr << "Failed to create tray helper window. GetLastError=" << GetLastError() << std::endl;
+        }
+
+        g_trayIcon.cbSize = sizeof(NOTIFYICONDATAW);
+        g_trayIcon.hWnd = g_trayHwnd; // must be the helper window, not the WS_CHILD wallpaper window
+        g_trayIcon.uID = TRAY_UID;
+        g_trayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+        g_trayIcon.uCallbackMessage = WM_TRAYICON;
+
+        /* 
+         * Use MAKEINTRESOURCEW with the raw resource ID (32512 = IDI_APPLICATION)
+         * instead of the IDI_APPLICATION macro directly: that macro expands to
+         * the ANSI (LPSTR) form unless the project defines UNICODE/_UNICODE,
+         * which doesn't match LoadIconW's LPCWSTR parameter.
+        */
+        g_trayIcon.hIcon = LoadIconW(NULL, MAKEINTRESOURCEW(32512));
+        wcsncpy_s(g_trayIcon.szTip, L"wall-aquarium (right-click to exit)", _TRUNCATE);
+
+        /* 
+         * Defensively remove any stale icon left behind by a previous run that
+         * crashed or got killed before ShutdownDesktopIntegration() could run.
+         * A leftover registration can otherwise make the new NIM_ADD misbehave.
+        */
+        Shell_NotifyIconW(NIM_DELETE, &g_trayIcon);
+
+        g_trayIconAdded = Shell_NotifyIconW(NIM_ADD, &g_trayIcon);
+        if (!g_trayIconAdded) {
+            std::cerr << "Failed to create tray icon. GetLastError=" << GetLastError() << std::endl;
+            OutputDebugStringW(L"wall-aquarium: Shell_NotifyIconW(NIM_ADD) failed\n");
+        } else {
+            // Opt into modern notification-icon behavior (correct popup menu
+            // positioning, etc.) instead of legacy pre-Vista behavior.
+            g_trayIcon.uVersion = NOTIFYICON_VERSION_4;
+            Shell_NotifyIconW(NIM_SETVERSION, &g_trayIcon);
+        }
+
+        if (!RegisterHotKey(NULL, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
+            std::cerr << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError() << std::endl;
+        }
+    }
+
+    void ShutdownDesktopIntegration() {
+        if (g_trayIconAdded) {
+            Shell_NotifyIconW(NIM_DELETE, &g_trayIcon);
+            g_trayIconAdded = false;
+        }
+        UnregisterHotKey(NULL, HOTKEY_ID_QUIT);
+        if (g_trayHwnd) {
+            DestroyWindow(g_trayHwnd);
+            g_trayHwnd = nullptr;
+        }
     }
 
 } // namespace Aquarium::Platform

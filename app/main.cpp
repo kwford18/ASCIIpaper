@@ -63,6 +63,8 @@ int main(int argc, char* argv[]) {
         timer.Tick();
     }
 
+    Aquarium::Platform::ShutdownDesktopIntegration();
+
     // std::cout << "Shutting down gracefully." << std::endl;
     return 0;
 }

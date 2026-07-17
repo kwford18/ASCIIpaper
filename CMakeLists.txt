@@ -79,11 +79,19 @@ include(GoogleTest)
 gtest_discover_tests(EngineTests)
 
 # Windows DLL Copy
-# Ensure the SDL3.dll is copied right next to the executable so it can run
+# Ensure the SDL3.dll is copied right next to the executables so they can run
 if(WIN32)
+    # Copy for the main application
     add_custom_command(TARGET wall-aquarium POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:SDL3::SDL3>
         $<TARGET_FILE_DIR:wall-aquarium>
+    )
+    
+    # Copy for the test executable to fix the 0xc0000135 crash
+    add_custom_command(TARGET EngineTests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:SDL3::SDL3>
+        $<TARGET_FILE_DIR:EngineTests>
     )
 endif()
