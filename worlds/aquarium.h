@@ -1,7 +1,8 @@
 #pragma once
-#include "engine/grid.h"
 #include <vector>
 #include <random>
+#include "engine/grid.h"
+#include "engine/scene.h"
 
 namespace Aquarium::Worlds {
 
@@ -48,15 +49,15 @@ namespace Aquarium::Worlds {
         float swayOffset; // Random offset so they don't sway in unison
     };
 
-    class AquariumScene {
+    class AquariumScene : public Engine::Scene {
     public:
         AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount);
 
         // Processes simulation logic (fish swimming, bubbles rising)
-        void Update(float deltaTime);
+        void Update(float deltaTime) override;
 
         // Draw the current state of the simulation into the character grid
-        void Draw(Engine::CharacterGrid& grid);
+        void Draw(Engine::CharacterGrid& grid) override;
 
         // Clears all entities from the scene
         void ClearEntities();
