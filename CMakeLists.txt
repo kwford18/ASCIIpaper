@@ -42,6 +42,7 @@ add_library(Engine STATIC
     engine/renderer.cpp
     engine/timer.cpp
     engine/config.cpp
+    engine/scene_manager.cpp
 )
 target_include_directories(Engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Engine PUBLIC SDL3::SDL3)
@@ -49,6 +50,7 @@ target_link_libraries(Engine PUBLIC SDL3::SDL3)
 # Simulation Worlds Target
 add_library(Worlds STATIC
     worlds/aquarium.cpp
+    worlds/city.cpp
 )
 target_include_directories(Worlds PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Worlds PRIVATE Engine)

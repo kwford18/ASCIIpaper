@@ -1,11 +1,16 @@
 #include <iostream>
 #include <SDL3/SDL_main.h>
+
 #include "engine/window.h"
 #include "engine/renderer.h"
 #include "engine/grid.h"
 #include "engine/timer.h"
 #include "engine/config.h"
+#include "engine/scene_manager.h"
+
 #include "worlds/aquarium.h"
+#include "worlds/city.h"
+
 #include "platform/desktop.h"
 
 int main(int argc, char* argv[]) {
@@ -28,6 +33,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Extract variables with defaults
+    std::string activeScene = config.GetString("scene", "aquarium");
     int targetFps = config.GetInt("target_fps", 60);
     int fishCount = config.GetInt("fish_count", 6);
     int bubbleCount = config.GetInt("bubble_count", 15);
@@ -45,19 +51,20 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Use our config variables!
     Aquarium::Engine::CharacterGrid grid(120, 67); // 1920/16 and 1080/16
-    Aquarium::Worlds::AquariumScene scene(120, 67, fishCount, bubbleCount, jellyCount);
+    
+    // Initialize the Scene Manager
+    Aquarium::Engine::SceneManager sceneManager;
 
-    /* 
-     * Create the Character Grid, sized to match the actual window.
-     * Window::Initialize() sizes the window to the primary display's
-     * real resolution (needed so it lines up with the WorkerW area it gets
-     * attached to). Computed to grid dimensions from the real size
-     * instead of assuming a fixed window size.
-     * SDL_RenderDebugText is an 8x8 pixel font, scaled 2x by the renderer,
-     * so each grid cell is 16x16 pixels.
-    */
+    // Select the scene based on the config file
+    if (activeScene == "city") {
+        sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::CityScene>(120, 67));
+    } else {
+        // Fallback to the aquarium for any other value
+        sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::AquariumScene>(
+            120, 67, fishCount, bubbleCount, jellyCount
+        ));
+    }
 
     // Apply adjustable framerate
     Aquarium::Engine::Timer timer(targetFps);
@@ -69,20 +76,19 @@ int main(int argc, char* argv[]) {
         window.PollEvents();
 
         // Update Scene Logic
-        scene.Update(timer.GetDeltaTime());
+        sceneManager.Update(timer.GetDeltaTime());
 
         // Draw Scene to Grid
-        scene.Draw(grid);
+        sceneManager.Draw(grid);
 
         // Render the grid to the screen
         renderer.DrawGrid(grid);
-        
+
         // Wait for next frame
         timer.Tick();
     }
 
     Aquarium::Platform::ShutdownDesktopIntegration();
 
-    // std::cout << "Shutting down gracefully." << std::endl;
     return 0;
 }
