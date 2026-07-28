@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
     int jellyCount = config.GetInt("jellyfish_count", 3);
 
     // Initialize Engine
-    Aquarium::Engine::Window window("wall-aquarium", 1920, 1080);
+    Aquarium::Engine::Window window("ASCIIpaper", 1920, 1080);
     if (!window.Initialize()) {
         return -1;
     }

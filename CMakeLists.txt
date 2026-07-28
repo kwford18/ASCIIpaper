@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(wall-aquarium VERSION 0.1.0 LANGUAGES CXX)
+project(ASCIIpaper VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -67,8 +67,8 @@ endif()
 
 # Application Executable
 # The WIN32 tells Windows to hide the console window
-add_executable(wall-aquarium WIN32 app/main.cpp)
-target_link_libraries(wall-aquarium PRIVATE Engine Worlds Platform)
+add_executable(ASCIIpaper WIN32 app/main.cpp)
+target_link_libraries(ASCIIpaper PRIVATE Engine Worlds Platform)
 
 # Unit Tests
 add_executable(EngineTests 
@@ -87,10 +87,10 @@ include(GoogleTest)
 # Ensure the SDL3.dll is copied right next to the executables so they can run
 if(WIN32)
     # Copy for the main application
-    add_custom_command(TARGET wall-aquarium POST_BUILD
+    add_custom_command(TARGET ASCIIpaper POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:SDL3::SDL3>
-        $<TARGET_FILE_DIR:wall-aquarium>
+        $<TARGET_FILE_DIR:ASCIIpaper>
     )
     
     # Copy for the test executable to fix the 0xc0000135 crash

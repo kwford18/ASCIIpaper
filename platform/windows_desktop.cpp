@@ -29,7 +29,7 @@ namespace Aquarium::Platform {
                     GetCursorPos(&pt);
 
                     HMENU menu = CreatePopupMenu();
-                    AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit wall-aquarium");
+                    AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit ASCIIpaper");
 
                     // Required so the menu closes properly if the user clicks away
                     SetForegroundWindow(hwnd);
@@ -77,47 +77,6 @@ namespace Aquarium::Platform {
             return CreateWindowExW(WS_EX_TOOLWINDOW, kClassName, L"", WS_POPUP,
                                     0, 0, 0, 0, NULL, NULL, wc.hInstance, NULL);
         }
-
-        // /*
-        //  * Called by SDL before it processes each raw Win32 message, so we can
-        //  * react to tray icon clicks and the global hotkey without SDL knowing
-        //  * or caring about either.
-        // */
-        // bool SDLCALL Win32MessageHook(void* /*userdata*/, MSG* msg) {
-        //     switch (msg->message) {
-        //         case WM_TRAYICON: {
-        //             UINT mouseMsg = LOWORD(msg->lParam);
-        //             if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
-        //                 POINT pt;
-        //                 GetCursorPos(&pt);
-
-        //                 HMENU menu = CreatePopupMenu();
-        //                 AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit wall-aquarium");
-
-        //                 // Required so the menu closes properly if the user clicks away
-        //                 SetForegroundWindow(msg->hwnd);
-        //                 TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, msg->hwnd, NULL);
-        //                 DestroyMenu(menu);
-        //             }
-        //             return false; // handled, don't let SDL process it further
-        //         }
-        //         case WM_COMMAND: {
-        //             if (LOWORD(msg->wParam) == ID_TRAY_EXIT) {
-        //                 g_shouldQuit = true;
-        //                 return false;
-        //             }
-        //             break;
-        //         }
-        //         case WM_HOTKEY: {
-        //             if (msg->wParam == HOTKEY_ID_QUIT) {
-        //                 g_shouldQuit = true;
-        //                 return false;
-        //             }
-        //             break;
-        //         }
-        //     }
-        //     return true; // let SDL handle everything else as normal
-        // }
     }
 
     bool ShouldQuit() {
@@ -307,7 +266,7 @@ namespace Aquarium::Platform {
          * which doesn't match LoadIconW's LPCWSTR parameter.
         */
         g_trayIcon.hIcon = LoadIconW(NULL, MAKEINTRESOURCEW(32512));
-        wcsncpy_s(g_trayIcon.szTip, L"wall-aquarium (right-click to exit)", _TRUNCATE);
+        wcsncpy_s(g_trayIcon.szTip, L"ASCIIpaper (right-click to exit)", _TRUNCATE);
 
         /* 
          * Defensively remove any stale icon left behind by a previous run that
@@ -319,7 +278,7 @@ namespace Aquarium::Platform {
         g_trayIconAdded = Shell_NotifyIconW(NIM_ADD, &g_trayIcon);
         if (!g_trayIconAdded) {
             std::cerr << "Failed to create tray icon. GetLastError=" << GetLastError() << std::endl;
-            OutputDebugStringW(L"wall-aquarium: Shell_NotifyIconW(NIM_ADD) failed\n");
+            OutputDebugStringW(L"ASCIIpaper: Shell_NotifyIconW(NIM_ADD) failed\n");
         } else {
             // Opt into modern notification-icon behavior (correct popup menu
             // positioning, etc.) instead of legacy pre-Vista behavior.
