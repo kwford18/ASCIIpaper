@@ -101,4 +101,11 @@ if(WIN32)
     )
 endif()
 
+# Ensure config.ini is copied to the executable directory so it can be read at runtime
+add_custom_command(TARGET ASCIIpaper POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/config.ini"
+    $<TARGET_FILE_DIR:ASCIIpaper>
+)
+
 gtest_discover_tests(EngineTests)
