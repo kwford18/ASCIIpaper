@@ -21,6 +21,9 @@ namespace Aquarium::Engine {
             return false;
         }
 
+        // Allow screensaver to still work
+        SDL_EnableScreenSaver();
+
         /* 
          * This window is meant to cover the whole desktop background, so size
          * it to the primary display's actual resolution rather than whatever
