@@ -1,5 +1,7 @@
-#include "worlds/aquarium.h"
 #include <cmath>
+
+#include "engine/types.h"
+#include "worlds/aquarium.h"
 
 namespace Aquarium::Worlds {
 
@@ -33,8 +35,8 @@ namespace Aquarium::Worlds {
         // Spawn Fish with wobble offsets
         for (int i = 0; i < fishCount; ++i) {
             float vx = fSpeedDist(m_rng);
-            Direction dir = dirDist(m_rng) == 0 ? Direction::Left : Direction::Right;
-            if (dir == Direction::Left) vx = -vx;
+            Engine::Direction dir = dirDist(m_rng) == 0 ? Engine::Direction::Left : Engine::Direction::Right;
+            if (dir == Engine::Direction::Left) vx = -vx;
 
             m_fishes.push_back({
                 xDist(m_rng), yDist(m_rng), vx, vyDist(m_rng), dir, phaseDist(m_rng), timerDist(m_rng),
@@ -78,7 +80,7 @@ namespace Aquarium::Worlds {
                 yDist(m_rng), 
                 jSpeedDist(m_rng), 
                 phaseDist(m_rng),
-                VerticalDirection::Up // Start by floating upwards
+                Engine::VerticalDirection::Up // Start by floating upwards
             });
         }
     }
@@ -106,11 +108,11 @@ namespace Aquarium::Worlds {
             if (fish.x <= 1.0f) {
                 fish.x = 1.0f;
                 fish.vx = std::abs(fish.vx); // Force right
-                fish.direction = Direction::Right; 
+                fish.direction = Engine::Direction::Right; 
             } else if (fish.x >= m_width - 4.0f) {
                 fish.x = m_width - 4.0f;
                 fish.vx = -std::abs(fish.vx); // Force left
-                fish.direction = Direction::Left;  
+                fish.direction = Engine::Direction::Left;  
             }
 
             // Y-Axis Wall Bouncing
@@ -150,12 +152,12 @@ namespace Aquarium::Worlds {
             // Bounce off top
             if (jelly.y <= 1.0f) {
                 jelly.y = 1.0f;
-                jelly.verticalDir = VerticalDirection::Down; // Turn downwards
+                jelly.verticalDir = Engine::VerticalDirection::Down; // Turn downwards
             }
             // Bounce off bottom (keep them floating above the seaweed roots)
             else if (jelly.y >= m_height - 4.0f) {
                 jelly.y = m_height - 4.0f;
-                jelly.verticalDir = VerticalDirection::Up;
+                jelly.verticalDir = Engine::VerticalDirection::Up;
             }
             
             // Keep bounds horizontal
@@ -199,7 +201,7 @@ namespace Aquarium::Worlds {
             int iy = static_cast<int>(fish.y + std::sin(m_timeAccumulator * 4.0f + fish.wobbleOffset) * 0.3f); 
             
             if (ix > 0 && ix < m_width - 3 && iy > 0 && iy < m_height - 1) {
-                if (fish.direction == Direction::Right) { 
+                if (fish.direction == Engine::Direction::Right) { 
                     grid.SetCell(ix, iy, '>', fish.r, fish.g, fish.b);
                     grid.SetCell(ix + 1, iy, '<', fish.r, fish.g, fish.b);
                     grid.SetCell(ix + 2, iy, '>', fish.r, fish.g, fish.b);

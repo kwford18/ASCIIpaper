@@ -3,25 +3,15 @@
 #include <random>
 #include "engine/grid.h"
 #include "engine/scene.h"
+#include "engine/types.h"
 
 namespace Aquarium::Worlds {
-
-    // Strongly-typed enum for direction
-    enum class Direction {
-        Left = -1,
-        Right = 1
-    };
-
-    enum class VerticalDirection {
-        Up = -1,
-        Down = 1
-    };
 
     // Data structure for a single fish
     struct Fish {
         float x, y;
         float vx, vy;         
-        Direction direction;
+        Engine::Direction direction;
         float wobbleOffset;
         float changeTimer;    
         uint8_t r, g, b;
@@ -32,7 +22,7 @@ namespace Aquarium::Worlds {
         float x, y;
         float speed;
         float pulseOffset;
-        VerticalDirection verticalDir;
+        Engine::VerticalDirection verticalDir;
     };
 
     // Data structure for a single bubble
