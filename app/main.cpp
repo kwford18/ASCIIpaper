@@ -45,6 +45,9 @@ int main(int argc, char* argv[]) {
     int carCount = config.GetInt("car_count", 12);
     int starCount = config.GetInt("star_count", 40);
 
+    // Weather config variables
+    std::string weatherMode = config.GetString("weather", "rain");
+
     // Initialize Engine
     ASCIIpaper::Engine::Window window("ASCIIpaper", 1920, 1080);
     if (!window.Initialize()) {
@@ -64,7 +67,9 @@ int main(int argc, char* argv[]) {
 
     // Select the scene based on the config file
     if (activeScene == "city") {
-        sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::CityScene>(120, 67, carCount, starCount));
+        sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::CityScene>(
+            120, 67, carCount, starCount, weatherMode
+        ));
     } else {
         // Fallback to the aquarium for any other value
         sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::AquariumScene>(

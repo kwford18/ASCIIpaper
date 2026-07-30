@@ -44,6 +44,7 @@ add_library(Engine STATIC
     engine/config.cpp
     engine/scene_manager.cpp
     engine/types.h
+    engine/weather.cpp
 )
 target_include_directories(Engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Engine PUBLIC SDL3::SDL3)

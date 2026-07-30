@@ -5,6 +5,7 @@
 
 #include "engine/scene.h"
 #include "engine/types.h"
+#include "engine/weather.h"
 
 namespace ASCIIpaper::Worlds {
 
@@ -51,7 +52,7 @@ namespace ASCIIpaper::Worlds {
 
     class CityScene : public Engine::Scene {
     public:
-        CityScene(int width, int height, int carCount, int starCount);
+        CityScene(int width, int height, int carCount, int starCount, const std::string& weather);
 
         void Update(float deltaTime) override;
         void Draw(Engine::CharacterGrid& grid) override;
@@ -75,10 +76,16 @@ namespace ASCIIpaper::Worlds {
         // UFO
         Ufo m_ufo;
 
+        // Weather
+        std::string m_weatherStr;
+        Engine::WeatherSystem m_weather;
+
+        // Vectors
         std::vector<Building> m_buildings;
         std::vector<Car> m_cars;
         std::vector<Star> m_stars;
         
+        // RNG
         std::mt19937 m_rng;
 
         void InitializeWorld();

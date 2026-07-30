@@ -5,9 +5,9 @@
 
 namespace ASCIIpaper::Worlds {
 
-    CityScene::CityScene(int width, int height, int carCount, int starCount) 
+    CityScene::CityScene(int width, int height, int carCount, int starCount, const std::string& weather) 
         : m_width(width), m_height(height), m_timeAccumulator(0.0f), 
-          m_carCount(carCount), m_starCount(starCount),
+          m_carCount(carCount), m_starCount(starCount), m_weatherStr(weather),
           m_trainTimer(0.0f), m_trainX(-50.0f), m_trainActive(false),
           m_rng(std::random_device{}()) {
         InitializeWorld();
@@ -82,10 +82,18 @@ namespace ASCIIpaper::Worlds {
         m_ufo.state = UfoState::Waiting;
         m_ufo.timer = 0.0f;
         m_ufo.spawnThreshold = ufoSpawnDist(m_rng);
+
+        // Weather system
+        Engine::WeatherType wType = Engine::WeatherType::None;
+        if (m_weatherStr == "rain") wType = Engine::WeatherType::Rain;
+        else if (m_weatherStr == "snow") wType = Engine::WeatherType::Snow;
+        
+        m_weather.Initialize(wType, m_width, m_height);
     }
 
     void CityScene::Update(float deltaTime) {
         m_timeAccumulator += deltaTime;
+        m_weather.Update(deltaTime);
 
         // Update Stars
         for (auto& star : m_stars) {
@@ -219,17 +227,19 @@ namespace ASCIIpaper::Worlds {
         // Buildings
         for (const auto& building : m_buildings) {
             int winIndex = 0;
+
             for (int y = 0; y < building.height; ++y) {
-                int drawY = m_height - 15 - y; // Buildings end at Y-15
+                int drawY = m_height - 20 - y;
 
                 for (int x = 0; x < building.width; ++x) {
                     int drawX = building.x + x;
-                    
+
                     if (x % 2 == 1 && y % 2 == 1 && building.windows[winIndex]) {
                         grid.SetCell(drawX, drawY, '#', 255, 255, 100); 
                     } else {
                         grid.SetCell(drawX, drawY, '#', building.r, building.g, building.b); 
                     }
+                    
                     winIndex++;
                 }
             }
@@ -291,6 +301,9 @@ namespace ASCIIpaper::Worlds {
                 grid.SetCell(ux + 2, uy + 1, 'v', 50, 255, 255);
             }
         }
+
+        // Weather
+        m_weather.Draw(grid);
     }
 
 } // namespace ASCIIpaper::Worlds
