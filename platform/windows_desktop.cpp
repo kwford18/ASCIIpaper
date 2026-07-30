@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <shellapi.h>
 
-namespace Aquarium::Platform {
+namespace ASCIIpaper::Platform {
 
     namespace {
         constexpr UINT WM_TRAYICON = WM_APP + 1;
@@ -303,4 +303,4 @@ namespace Aquarium::Platform {
         }
     }
 
-} // namespace Aquarium::Platform
+} // namespace ASCIIpaper::Platform

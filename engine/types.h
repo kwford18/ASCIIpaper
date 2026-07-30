@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     // Universal horizontal direction
     enum class Direction {
@@ -14,4 +14,4 @@ namespace Aquarium::Engine {
         Down = 1
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

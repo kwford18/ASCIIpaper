@@ -1,6 +1,6 @@
 #include "engine/Grid.h"
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     CharacterGrid::CharacterGrid(int width, int height) 
         : m_width(width), m_height(height), m_cells(width * height) {
@@ -37,4 +37,4 @@ namespace Aquarium::Engine {
         }
     }
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

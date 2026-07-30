@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     struct Cell {
         char character = ' ';
@@ -32,4 +32,4 @@ namespace Aquarium::Engine {
         std::vector<Cell> m_cells;
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

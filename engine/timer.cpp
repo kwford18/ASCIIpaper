@@ -1,6 +1,6 @@
 #include "engine/timer.h"
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     Timer::Timer(int targetFps) : m_targetFps(targetFps), m_deltaTime(0.0f) {
         // Calculate how many CPU ticks a single frame should take
@@ -35,4 +35,4 @@ namespace Aquarium::Engine {
         return m_deltaTime;
     }
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

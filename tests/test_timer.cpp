@@ -2,7 +2,7 @@
 #include "engine/timer.h"
 #include <SDL3/SDL.h>
 
-using namespace Aquarium::Engine;
+using namespace ASCIIpaper::Engine;
 
 TEST(TimerTest, Initialization) {
     // Initialize core SDL subsystems (no video/window required)

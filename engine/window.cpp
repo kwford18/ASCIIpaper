@@ -1,7 +1,7 @@
 #include "engine/Window.h"
 #include <iostream>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     Window::Window(const std::string& title, int width, int height)
         : m_title(title), m_width(width), m_height(height), m_shouldClose(false), m_window(nullptr) {
@@ -73,4 +73,4 @@ namespace Aquarium::Engine {
     int Window::GetHeight() const { return m_height; }
     SDL_Window* Window::GetNativeWindow() const { return m_window; }
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

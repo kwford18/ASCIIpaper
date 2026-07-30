@@ -2,7 +2,7 @@
 #include "engine/config.h"
 #include <sstream>
 
-using namespace Aquarium::Engine;
+using namespace ASCIIpaper::Engine;
 
 TEST(ConfigTest, FallbackToDefaultValues) {
     Config config;

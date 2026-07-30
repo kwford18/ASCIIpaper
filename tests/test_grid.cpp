@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "engine/Grid.h"
 
-using namespace Aquarium::Engine;
+using namespace ASCIIpaper::Engine;
 
 TEST(CharacterGridTest, Initialization) {
     CharacterGrid grid(80, 24);

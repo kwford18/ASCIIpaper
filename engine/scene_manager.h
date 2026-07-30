@@ -4,7 +4,7 @@
 #include "engine/scene.h"
 #include "engine/grid.h"
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     class SceneManager {
     public:
@@ -22,4 +22,4 @@ namespace Aquarium::Engine {
         std::unique_ptr<Scene> m_currentScene;
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

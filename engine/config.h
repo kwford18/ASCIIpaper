@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <istream>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     class Config {
     public:
@@ -27,4 +27,4 @@ namespace Aquarium::Engine {
         static std::string Trim(const std::string& str);
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

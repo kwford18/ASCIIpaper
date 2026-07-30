@@ -1,7 +1,7 @@
 #include "engine/renderer.h"
 #include <iostream>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     Renderer::Renderer(SDL_Window* window) 
         : m_window(window), m_renderer(nullptr) {
@@ -53,4 +53,4 @@ namespace Aquarium::Engine {
         SDL_RenderPresent(m_renderer);
     }
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

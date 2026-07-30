@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Load Configuration using the absolute path
-    Aquarium::Engine::Config config;
+    ASCIIpaper::Engine::Config config;
     if (config.Load(configPath)) {
         std::cout << "Loaded config.ini successfully.\n";
     } else {
@@ -46,38 +46,38 @@ int main(int argc, char* argv[]) {
     int starCount = config.GetInt("star_count", 40);
 
     // Initialize Engine
-    Aquarium::Engine::Window window("ASCIIpaper", 1920, 1080);
+    ASCIIpaper::Engine::Window window("ASCIIpaper", 1920, 1080);
     if (!window.Initialize()) {
         return -1;
     }
-    Aquarium::Platform::AttachToDesktop(window.GetNativeWindow());
+    ASCIIpaper::Platform::AttachToDesktop(window.GetNativeWindow());
 
-    Aquarium::Engine::Renderer renderer(window.GetNativeWindow());
+    ASCIIpaper::Engine::Renderer renderer(window.GetNativeWindow());
     if (!renderer.Initialize()) {
         return -1;
     }
 
-    Aquarium::Engine::CharacterGrid grid(120, 67); // 1920/16 and 1080/16
+    ASCIIpaper::Engine::CharacterGrid grid(120, 67); // 1920/16 and 1080/16
     
     // Initialize the Scene Manager
-    Aquarium::Engine::SceneManager sceneManager;
+    ASCIIpaper::Engine::SceneManager sceneManager;
 
     // Select the scene based on the config file
     if (activeScene == "city") {
-        sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::CityScene>(120, 67, carCount, starCount));
+        sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::CityScene>(120, 67, carCount, starCount));
     } else {
         // Fallback to the aquarium for any other value
-        sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::AquariumScene>(
+        sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::AquariumScene>(
             120, 67, fishCount, bubbleCount, jellyCount
         ));
     }
 
     // Apply adjustable framerate
-    Aquarium::Engine::Timer timer(targetFps);
+    ASCIIpaper::Engine::Timer timer(targetFps);
     timer.Start();
 
     // Main Engine Loop
-    while (!window.ShouldClose() && !Aquarium::Platform::ShouldQuit()) {
+    while (!window.ShouldClose() && !ASCIIpaper::Platform::ShouldQuit()) {
         // Process Input/OS Events
         window.PollEvents();
 
@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
         timer.Tick();
     }
 
-    Aquarium::Platform::ShutdownDesktopIntegration();
+    ASCIIpaper::Platform::ShutdownDesktopIntegration();
 
     return 0;
 }

@@ -1,6 +1,6 @@
 #include "engine/scene_manager.h"
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     void SceneManager::ChangeScene(std::unique_ptr<Scene> newScene) {
         // std::move transfers ownership from the caller to the manager
@@ -19,4 +19,4 @@ namespace Aquarium::Engine {
         }
     }
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

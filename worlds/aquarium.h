@@ -5,7 +5,7 @@
 #include "engine/scene.h"
 #include "engine/types.h"
 
-namespace Aquarium::Worlds {
+namespace ASCIIpaper::Worlds {
 
     // Data structure for a single fish
     struct Fish {
@@ -73,4 +73,4 @@ namespace Aquarium::Worlds {
         void InitializeWorld(int fishCount, int bubbleCount, int jellyCount);
     };
 
-} // namespace Aquarium::Worlds
+} // namespace ASCIIpaper::Worlds

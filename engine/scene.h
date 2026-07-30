@@ -2,7 +2,7 @@
 
 #include "engine/grid.h"
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
     
     class Scene {
     public:
@@ -16,4 +16,4 @@ namespace Aquarium::Engine {
         virtual void Draw(CharacterGrid& grid) = 0;
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

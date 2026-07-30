@@ -2,8 +2,8 @@
 #include "worlds/aquarium.h"
 #include "engine/grid.h"
 
-using namespace Aquarium::Worlds;
-using namespace Aquarium::Engine;
+using namespace ASCIIpaper::Worlds;
+using namespace ASCIIpaper::Engine;
 
 TEST(AquariumSceneTest, Initialization) {
     // Pass default entity counts (5 fish, 12 bubbles, 3 jellyfish)

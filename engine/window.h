@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 #include <string>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     class Window {
     public:
@@ -32,4 +32,4 @@ namespace Aquarium::Engine {
         SDL_Window* m_window;
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

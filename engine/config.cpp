@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     std::string Config::Trim(const std::string& str) {
         auto start = std::find_if_not(str.begin(), str.end(), [](int c) { return std::isspace(c); });
@@ -62,4 +62,4 @@ namespace Aquarium::Engine {
         return defaultValue;
     }
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

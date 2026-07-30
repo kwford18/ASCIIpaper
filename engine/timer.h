@@ -1,7 +1,7 @@
 #pragma once
 #include <SDL3/SDL.h>
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     class Timer {
     public:
@@ -22,4 +22,4 @@ namespace Aquarium::Engine {
         float m_deltaTime;
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

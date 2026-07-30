@@ -3,7 +3,7 @@
 #include "engine/types.h"
 #include "worlds/city.h"
 
-namespace Aquarium::Worlds {
+namespace ASCIIpaper::Worlds {
 
     CityScene::CityScene(int width, int height, int carCount, int starCount) 
         : m_width(width), m_height(height), m_timeAccumulator(0.0f), 
@@ -77,6 +77,11 @@ namespace Aquarium::Worlds {
                 timeDist(m_rng), thresholdDist(m_rng), false
             });
         }
+
+        std::uniform_real_distribution<float> ufoSpawnDist(60.0f, 120.0f); // 1 to 2 minutes
+        m_ufo.state = UfoState::Waiting;
+        m_ufo.timer = 0.0f;
+        m_ufo.spawnThreshold = ufoSpawnDist(m_rng);
     }
 
     void CityScene::Update(float deltaTime) {
@@ -156,6 +161,44 @@ namespace Aquarium::Worlds {
                 car.speed = speedDist(m_rng);
             }
         }
+
+        // UFO State Machine
+        if (m_ufo.state == UfoState::Waiting) {
+            m_ufo.timer += deltaTime;
+            if (m_ufo.timer >= m_ufo.spawnThreshold) {
+                m_ufo.state = UfoState::Entering;
+                m_ufo.x = -10.0f; // Start off-screen left
+                m_ufo.y = 8.0f;   // High up in the sky
+            }
+        } else if (m_ufo.state == UfoState::Entering) {
+            m_ufo.x += 35.0f * deltaTime; // Coast into the scene
+            
+            // Reached the center of the screen
+            if (m_ufo.x >= m_width / 2.0f) { 
+                m_ufo.state = UfoState::Hovering;
+                m_ufo.timer = 0.0f; // Reuse timer to track hover duration
+            }
+        } else if (m_ufo.state == UfoState::Hovering) {
+            m_ufo.timer += deltaTime;
+            // Smoothly bob up and down while scanning
+            m_ufo.y = 8.0f + std::sin(m_timeAccumulator * 2.5f) * 1.5f; 
+            
+            if (m_ufo.timer >= 12.0f) { // Hover and explore for 12 seconds
+                m_ufo.state = UfoState::Leaving;
+            }
+        } else if (m_ufo.state == UfoState::Leaving) {
+            // Fly away quickly
+            m_ufo.x += 120.0f * deltaTime; 
+            m_ufo.y -= 25.0f * deltaTime; 
+            
+            if (m_ufo.x > m_width + 10.0f) {
+                m_ufo.state = UfoState::Waiting;
+                m_ufo.timer = 0.0f;
+                // Generate a new random wait time for the next visit
+                std::uniform_real_distribution<float> ufoSpawnDist(60.0f, 120.0f);
+                m_ufo.spawnThreshold = ufoSpawnDist(m_rng);
+            }
+        }
     }
 
     void CityScene::Draw(Engine::CharacterGrid& grid) {
@@ -230,6 +273,24 @@ namespace Aquarium::Worlds {
                 grid.SetCell(tx + i, ty, trainArt[i], 200, 200, 220); // Silver train
             }
         }
+
+        // UFO
+        if (m_ufo.state != UfoState::Waiting) {
+            int ux = static_cast<int>(m_ufo.x);
+            int uy = static_cast<int>(m_ufo.y);
+            
+            /* Draw a classic flying saucer: /(o)\ */ 
+            grid.SetCell(ux, uy, '/', 100, 255, 100);
+            grid.SetCell(ux + 1, uy, '(', 200, 200, 200);
+            grid.SetCell(ux + 2, uy, 'o', 50, 255, 255); // Glowing cyan core
+            grid.SetCell(ux + 3, uy, ')', 200, 200, 200);
+            grid.SetCell(ux + 4, uy, '\\', 100, 255, 100);
+            
+            // Project a tiny scanner beam while hovering
+            if (m_ufo.state == UfoState::Hovering) {
+                grid.SetCell(ux + 2, uy + 1, 'v', 50, 255, 255);
+            }
+        }
     }
 
-} // namespace Aquarium::Worlds
+} // namespace ASCIIpaper::Worlds

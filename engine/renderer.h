@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 #include "engine/grid.h"
 
-namespace Aquarium::Engine {
+namespace ASCIIpaper::Engine {
 
     class Renderer {
     public:
@@ -20,4 +20,4 @@ namespace Aquarium::Engine {
         SDL_Renderer* m_renderer;
     };
 
-} // namespace Aquarium::Engine
+} // namespace ASCIIpaper::Engine

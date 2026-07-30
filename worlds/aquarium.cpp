@@ -3,7 +3,7 @@
 #include "engine/types.h"
 #include "worlds/aquarium.h"
 
-namespace Aquarium::Worlds {
+namespace ASCIIpaper::Worlds {
 
     AquariumScene::AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount) 
         : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_rng(std::random_device{}()) {
@@ -238,4 +238,4 @@ namespace Aquarium::Worlds {
         }
     }
 
-} // namespace Aquarium::Worlds
+} // namespace ASCIIpaper::Worlds

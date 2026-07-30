@@ -1,7 +1,7 @@
 #pragma once
 #include <SDL3/SDL.h>
 
-namespace Aquarium::Platform {
+namespace ASCIIpaper::Platform {
 
     // Detaches the window from standard OS management 
     // and forces it to draw as the desktop background.
@@ -9,4 +9,4 @@ namespace Aquarium::Platform {
     bool ShouldQuit();
     void ShutdownDesktopIntegration();
 
-} // namespace Aquarium::Platform
+} // namespace ASCIIpaper::Platform
