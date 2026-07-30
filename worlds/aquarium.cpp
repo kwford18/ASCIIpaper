@@ -101,6 +101,7 @@ namespace ASCIIpaper::Worlds {
             });
         }
 
+        // Spawn crab
         m_crab = {
             static_cast<float>(m_width / 2),    // Start in the middle
             static_cast<float>(m_height - 4),   // Rest on the very bottom row
@@ -109,6 +110,15 @@ namespace ASCIIpaper::Worlds {
             0.0f,                               // Timer
             true,                               // isMoving
             220, 200, 180                       // Tan shell color
+        };
+
+        // Spawn whale (starts inactive; real spawn position set when it activates in Update)
+        m_whale = {
+            static_cast<float>(m_width) + 80.0f,
+            static_cast<float>(m_height / 4),
+            -12.0f,
+            false,
+            0.0f
         };
     }
 
@@ -269,10 +279,59 @@ namespace ASCIIpaper::Worlds {
                 }
             }
         }
+
+        // Background whale
+        if (!m_whale.active) {
+            m_whale.timer += deltaTime;
+            if (m_whale.timer > 45.0f) { 
+                m_whale.active = true;
+                m_whale.x = static_cast<float>(m_width) + 60.0f; // Start safely offscreen to the right
+                
+                // Randomize its vertical swimming lane
+                std::uniform_real_distribution<float> whaleYDist(5.0f, m_height / 2.0f);
+                m_whale.y = whaleYDist(m_rng);
+                m_whale.timer = 0.0f;
+            }
+        } else {
+            // Whale speed is also dictated by your CPU usage! (speed is negative, so it drifts left)
+            m_whale.x += m_whale.speed * cpuMultiplier * deltaTime;
+            if (m_whale.x < -80.0f) {
+                m_whale.active = false; 
+            }
+        }
     }
 
     void AquariumScene::Draw(Engine::CharacterGrid& grid) {
         grid.Clear();
+
+        /*
+         * Draw the background Whale.
+         * Draw this BEFORE the seaweed, fish, and bubbles so that
+         * it appears to be swimming in the deep background of the tank.
+         */
+        if (m_whale.active) {
+            std::vector<std::string> whaleArt = {
+                "       .",
+                "      \":\" ",
+                "    ___:____     |\"\\/\"|",
+                "  ,'        `.    \\  /",
+                "  |  O        \\___/  |",
+                "   \\________________/"
+            };
+            
+            int wx = static_cast<int>(m_whale.x);
+            int wy = static_cast<int>(m_whale.y);
+            
+            for (size_t r = 0; r < whaleArt.size(); ++r) {
+                for (size_t c = 0; c < whaleArt[r].length(); ++c) {
+                    
+                    if (whaleArt[r][c] != ' ' && (wx + static_cast<int>(c)) >= 0 && (wx + static_cast<int>(c)) < m_width) {
+                        // Dark blue/grey to look distant and massive
+                        grid.SetCell(wx + static_cast<int>(c), wy + static_cast<int>(r), whaleArt[r][c], 40, 60, 100); 
+                    }
+                }
+            }
+        }
 
         // Draw Seaweed
         for (const auto& weed : m_seaweeds) {
@@ -356,7 +415,7 @@ namespace ASCIIpaper::Worlds {
             }
         }
 
-        // Hermit crab 
+        // Hermit crab  
         int cx = static_cast<int>(m_crab.x);
         int cy = static_cast<int>(m_crab.y);
         if (cx >= 0 && cx < m_width - 2) {

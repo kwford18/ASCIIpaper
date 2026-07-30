@@ -56,6 +56,14 @@ namespace ASCIIpaper::Worlds {
         bool isMoving;
         uint8_t r, g, b;
     };
+
+    // Data structure for whale
+    struct Whale {
+        float x, y;
+        float speed;
+        bool active;
+        float timer;
+    };
     
 
     class AquariumScene : public Engine::Scene {
@@ -91,7 +99,9 @@ namespace ASCIIpaper::Worlds {
         std::vector<Coral> m_corals;
 
         HermitCrab m_crab;
+        Whale m_whale;
         
+        // RNG
         std::mt19937 m_rng;
         
         // Helper to spawn initial entities
