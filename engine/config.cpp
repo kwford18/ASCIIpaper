@@ -62,4 +62,21 @@ namespace ASCIIpaper::Engine {
         return defaultValue;
     }
 
+    bool Config::GetBool(const std::string& key, bool defaultValue) const {
+        std::string val = GetString(key, "");
+        if (val.empty()) {
+            return defaultValue;
+        }
+
+        // Convert the string to lowercase so "True", "TRUE", and "true" all work
+        std::transform(val.begin(), val.end(), val.begin(),
+            [](unsigned char c){ return std::tolower(c); });
+
+        if (val == "true" || val == "1" || val == "yes" || val == "on") {
+            return true;
+        }
+        
+        return false;
+    }
+
 } // namespace ASCIIpaper::Engine

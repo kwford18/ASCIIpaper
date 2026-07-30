@@ -1,14 +1,17 @@
 #include <cmath>
+#include <string>
 
 #include "engine/types.h"
 #include "worlds/city.h"
 
 namespace ASCIIpaper::Worlds {
 
-    CityScene::CityScene(int width, int height, int carCount, int starCount, const std::string& weather) 
+    CityScene::CityScene(int width, int height, int carCount, int starCount, const std::string& weather, bool systemSync) 
         : m_width(width), m_height(height), m_timeAccumulator(0.0f), 
           m_carCount(carCount), m_starCount(starCount), m_weatherStr(weather),
+          m_systemSync(systemSync),
           m_trainTimer(0.0f), m_trainX(-50.0f), m_trainActive(false),
+          m_trainSpeed(45.0f), m_trainCars(3),
           m_rng(std::random_device{}()) {
         InitializeWorld();
     }
@@ -94,6 +97,39 @@ namespace ASCIIpaper::Worlds {
 
     void CityScene::Update(float deltaTime) {
         m_timeAccumulator += deltaTime;
+
+        float cpuMultiplier = 1.0f;
+
+        // System monitor
+        if (m_systemSync) {
+            m_sysMonitor.Update(deltaTime);
+            float currentCpu = m_sysMonitor.GetCpuUsage(); // 0.0 to 100.0
+            float currentRam = m_sysMonitor.GetRamUsage(); // 0.0 to 100.0
+
+            // Base CPU Multiplier for cars (0% = 1x speed, 100% = 4x speed)
+            cpuMultiplier = 1.0f + (currentCpu / 33.3f); 
+
+            // Link RAM to Skyscraper Lights
+            if (std::abs(currentRam - m_lastRamUsage) > 1.0f) {
+                m_lastRamUsage = currentRam;
+                int litChance = static_cast<int>(currentRam);
+
+                for (auto& building : m_buildings) {
+                    std::uniform_int_distribution<int> dist(0, 100);
+
+                    for (size_t i = 0; i < building.windows.size(); ++i) {
+                        building.windows[i] = (dist(m_rng) < litChance);
+                    }
+                }
+            }
+
+            // Link CPU to Storm Intensity
+            // 0% CPU = Strikes every 10-20s. 100% CPU = Strikes every 1-3s!
+            float minFreq = std::max(1.0f, 10.0f - (9.0f * (currentCpu / 100.0f)));
+            float maxFreq = std::max(3.0f, 20.0f - (17.0f * (currentCpu / 100.0f)));
+            m_weather.SetLightningFrequency(minFreq, maxFreq);
+        }
+        
         m_weather.Update(deltaTime);
 
         // Update Stars
@@ -115,21 +151,31 @@ namespace ASCIIpaper::Worlds {
         // Update Train
         if (!m_trainActive) {
             m_trainTimer += deltaTime;
-            if (m_trainTimer >= 20.0f) { // Train comes every 20 seconds
+            if (m_trainTimer >= 20.0f) { 
                 m_trainActive = true;
-                m_trainX = -40.0f; 
+                m_trainX = -60.0f; 
                 m_trainTimer = 0.0f;
+
+                // Link Train properties to hardware
+                if (m_systemSync) {
+                    // High RAM = Massive freight train (up to 9 cars)
+                    m_trainCars = 3 + static_cast<int>(m_sysMonitor.GetRamUsage() / 15.0f); 
+                    // High CPU = Bullet train
+                    m_trainSpeed = 45.0f + m_sysMonitor.GetCpuUsage(); 
+                } else {
+                    m_trainCars = 3;
+                    m_trainSpeed = 45.0f;
+                }
             }
         } else {
-            m_trainX += 45.0f * deltaTime;
-            if (m_trainX > m_width + 10) {
-                m_trainActive = false; // Deactivate when off screen
-            }
+            m_trainX += m_trainSpeed * deltaTime; 
+            if (m_trainX > m_width + 20) m_trainActive = false; 
         }
 
         // Traffic
         for (auto& car : m_cars) {
-            car.x += car.speed * static_cast<float>(car.direction) * deltaTime;
+            // Apply the CPU multiplier directly to the speed!
+            car.x += car.speed * cpuMultiplier * static_cast<float>(car.direction) * deltaTime;
         }
 
         // Collision Check to prevent cars from passing through each other
@@ -277,11 +323,14 @@ namespace ASCIIpaper::Worlds {
         // Train
         if (m_trainActive) {
             int tx = static_cast<int>(m_trainX);
-            int ty = m_height - 6;
+            int ty = m_height - 7;
             
-            std::string trainArt = "[_]-[_]-[_]>";
+            std::string trainArt = "";
+            for (int i = 0; i < m_trainCars; ++i) trainArt += "[_]-"; // Cargo cars
+            trainArt += "[_]>"; // Engine car
+            
             for (size_t i = 0; i < trainArt.length(); ++i) {
-                grid.SetCell(tx + i, ty, trainArt[i], 200, 200, 220); // Silver train
+                grid.SetCell(tx + static_cast<int>(i), ty, trainArt[i], 200, 200, 220); 
             }
         }
 
@@ -305,6 +354,14 @@ namespace ASCIIpaper::Worlds {
 
         // Weather
         m_weather.Draw(grid, m_height - 20);
+
+        if (m_systemSync) {
+            std::string hudStr = "SYSTEM SYNC | CPU: " + std::to_string(static_cast<int>(m_sysMonitor.GetCpuUsage())) + 
+                                 "% | RAM: " + std::to_string(static_cast<int>(m_sysMonitor.GetRamUsage())) + "%";
+            for (size_t i = 0; i < hudStr.length(); ++i) {
+                grid.SetCell(2 + static_cast<int>(i), 1, hudStr[i], 0, 255, 255); // Glowing Cyan text in top left
+            }
+        }
     }
 
 } // namespace ASCIIpaper::Worlds

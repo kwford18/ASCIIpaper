@@ -2,6 +2,8 @@
 #include <string>
 #include <unordered_map>
 #include <istream>
+#include <algorithm>
+#include <cctype>
 
 namespace ASCIIpaper::Engine {
 
@@ -19,6 +21,7 @@ namespace ASCIIpaper::Engine {
         int GetInt(const std::string& key, int defaultValue) const;
         float GetFloat(const std::string& key, float defaultValue) const;
         std::string GetString(const std::string& key, const std::string& defaultValue) const;
+        bool GetBool(const std::string& key, bool defaultValue = false) const;
 
     private:
         std::unordered_map<std::string, std::string> m_values;

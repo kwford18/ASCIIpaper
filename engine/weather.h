@@ -27,6 +27,11 @@ namespace ASCIIpaper::Engine {
         void Update(float deltaTime);
         void Draw(CharacterGrid& grid, int maxDrawY = -1);
 
+        void SetLightningFrequency(float minSeconds, float maxSeconds) {
+            m_lightningMin = minSeconds;
+            m_lightningMax = maxSeconds;
+        }
+
     private:
         WeatherType m_type = WeatherType::None;
         int m_width = 0;
@@ -38,6 +43,8 @@ namespace ASCIIpaper::Engine {
         float m_lightningThreshold = 5.0f;
         bool m_isLightning = false;
         int m_lightningX = 0;
+        float m_lightningMin = 5.0f;
+        float m_lightningMax = 15.0f;
         std::vector<std::pair<int, int>> m_currentBolt;
     };
 

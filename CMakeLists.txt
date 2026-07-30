@@ -45,9 +45,17 @@ add_library(Engine STATIC
     engine/scene_manager.cpp
     engine/types.h
     engine/weather.cpp
+    engine/system_monitor.h
 )
 target_include_directories(Engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Engine PUBLIC SDL3::SDL3)
+
+# Selectively compile the correct monitor implementation
+if(WIN32)
+    target_sources(Engine PRIVATE engine/windows_monitor.cpp)
+elseif(UNIX AND NOT APPLE)
+    target_sources(Engine PRIVATE engine/linux_monitor.cpp)
+endif()
 
 # Simulation Worlds Target
 add_library(Worlds STATIC
@@ -58,7 +66,9 @@ target_include_directories(Worlds PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Worlds PRIVATE Engine)
 
 # Platform Backend Target
-add_library(Platform STATIC)
+add_library(Platform STATIC
+    platform/desktop.h
+)
 target_include_directories(Platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Platform PRIVATE SDL3::SDL3)
 
@@ -85,9 +95,10 @@ target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
 
 # Register the test with CTest
 include(GoogleTest)
+gtest_discover_tests(EngineTests)
 
-# Windows DLL Copy
-# Ensure the SDL3.dll is copied right next to the executables so they can run
+# Windows DLL and Config Copy
+# Ensure the SDL3.dll and config.ini are copied right next to the executables so they can run
 if(WIN32)
     # Copy for the main application
     add_custom_command(TARGET ASCIIpaper POST_BUILD
@@ -110,5 +121,3 @@ add_custom_command(TARGET ASCIIpaper POST_BUILD
     "${CMAKE_CURRENT_SOURCE_DIR}/config.ini"
     $<TARGET_FILE_DIR:ASCIIpaper>
 )
-
-gtest_discover_tests(EngineTests)

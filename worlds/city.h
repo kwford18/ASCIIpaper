@@ -6,6 +6,7 @@
 #include "engine/scene.h"
 #include "engine/types.h"
 #include "engine/weather.h"
+#include "engine/system_monitor.h"
 
 namespace ASCIIpaper::Worlds {
 
@@ -52,7 +53,14 @@ namespace ASCIIpaper::Worlds {
 
     class CityScene : public Engine::Scene {
     public:
-        CityScene(int width, int height, int carCount, int starCount, const std::string& weather);
+        CityScene(
+            int width,
+            int height,
+            int carCount,
+            int starCount,
+            const std::string& weather,
+            bool systemSync
+        );
 
         void Update(float deltaTime) override;
         void Draw(Engine::CharacterGrid& grid) override;
@@ -72,6 +80,8 @@ namespace ASCIIpaper::Worlds {
         float m_trainTimer;
         float m_trainX;
         bool m_trainActive;
+        float m_trainSpeed;
+        int m_trainCars;
 
         // UFO
         Ufo m_ufo;
@@ -87,6 +97,11 @@ namespace ASCIIpaper::Worlds {
         
         // RNG
         std::mt19937 m_rng;
+
+        // System Monitr
+        bool m_systemSync;
+        Engine::SystemMonitor m_sysMonitor;
+        float m_lastRamUsage = -1.0f; // Track RAM to prevent flickering lights
 
         void InitializeWorld();
     };

@@ -63,3 +63,6 @@ _deps/
 
 # Configs
 *.ini
+
+# Logs
+*.log

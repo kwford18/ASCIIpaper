@@ -1,6 +1,7 @@
 #include <iostream>
 #include <SDL3/SDL_main.h>
 
+
 #include "engine/window.h"
 #include "engine/renderer.h"
 #include "engine/grid.h"
@@ -47,6 +48,9 @@ int main(int argc, char* argv[]) {
 
     // Weather config variables
     std::string weatherMode = config.GetString("weather", "rain");
+    
+    // System sync config variables
+    bool systemSync = config.GetBool("system_sync", false);
 
     // Initialize Engine
     ASCIIpaper::Engine::Window window("ASCIIpaper", 1920, 1080);
@@ -68,7 +72,7 @@ int main(int argc, char* argv[]) {
     // Select the scene based on the config file
     if (activeScene == "city") {
         sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::CityScene>(
-            120, 67, carCount, starCount, weatherMode
+            120, 67, carCount, starCount, weatherMode, systemSync
         ));
     } else {
         // Fallback to the aquarium for any other value

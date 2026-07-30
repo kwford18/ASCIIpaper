@@ -70,8 +70,9 @@ namespace ASCIIpaper::Engine {
                     m_isLightning = true;
                     m_lightningTimer = 0.0f;
                     
-                    // Generate a random wait time for the next strike (5 to 15 seconds)
-                    m_lightningThreshold = 5.0f + static_cast<float>(rand() % 10);
+                    // Use the configurable limits for lightning duration
+                    m_lightningThreshold = m_lightningMin + static_cast<float>(rand()) / 
+                        (static_cast<float>(RAND_MAX / (m_lightningMax - m_lightningMin)));
                     
                     // Generate a jagged bolt
                     m_lightningX = rand() % (m_width - 10) + 5;
