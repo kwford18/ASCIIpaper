@@ -7,13 +7,13 @@ using namespace ASCIIpaper::Engine;
 
 TEST(AquariumSceneTest, Initialization) {
     // Pass default entity counts (5 fish, 12 bubbles, 3 jellyfish)
-    ASSERT_NO_THROW(AquariumScene scene(50, 37, 5, 12, 3));
+    ASSERT_NO_THROW(AquariumScene scene(50, 37, 5, 12, 3, false));
 }
 
 TEST(AquariumSceneTest, DrawPopulatesGridBoundaries) {
     // Use a smaller 10x10 grid/scene for easier boundary testing
     CharacterGrid grid(10, 10);
-    AquariumScene scene(10, 10, 0, 0, 0);
+    AquariumScene scene(10, 10, 0, 0, 0, false);
 
     // Clear randomly spawned entities so they don't corrupt static boundary test
     scene.ClearEntities();
@@ -26,7 +26,7 @@ TEST(AquariumSceneTest, DrawPopulatesGridBoundaries) {
 
 TEST(AquariumSceneTest, DrawClearsPreviousFrame) {
     CharacterGrid grid(10, 10);
-    AquariumScene scene(10, 10, 0, 0, 0);
+    AquariumScene scene(10, 10, 0, 0, 0, false);
 
     // Clear randomly spawned entities so they don't corrupt test
     scene.ClearEntities();
@@ -41,7 +41,7 @@ TEST(AquariumSceneTest, DrawClearsPreviousFrame) {
 }
 
 TEST(AquariumSceneTest, SimulationSpawnsEntities) {
-    AquariumScene scene(50, 37, 5, 12, 3);
+    AquariumScene scene(50, 37, 5, 12, 3, false);
     
     // The scene should automatically seed life when initialized
     EXPECT_GT(scene.GetFishCount(), 0);
@@ -51,7 +51,7 @@ TEST(AquariumSceneTest, SimulationSpawnsEntities) {
 TEST(AquariumSceneTest, UpdateMovesEntities) {
     CharacterGrid grid_before(50, 37);
     CharacterGrid grid_after(50, 37);
-    AquariumScene scene(50, 37, 5, 12, 3);
+    AquariumScene scene(50, 37, 5, 12, 3, false);
 
     // Capture the static initial frame
     scene.Draw(grid_before);

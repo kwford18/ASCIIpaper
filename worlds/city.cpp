@@ -100,7 +100,11 @@ namespace ASCIIpaper::Worlds {
 
         float cpuMultiplier = 1.0f;
 
-        // System monitor
+        /*
+         * Poll the system monitor if sync is enabled
+         * We use CPU usage to dynamically scale car and train speed, and lightning frequency
+         * We use RAM usage to increase building lights
+         */
         if (m_systemSync) {
             m_sysMonitor.Update(deltaTime);
             float currentCpu = m_sysMonitor.GetCpuUsage(); // 0.0 to 100.0
@@ -355,6 +359,7 @@ namespace ASCIIpaper::Worlds {
         // Weather
         m_weather.Draw(grid, m_height - 20);
 
+        // System monitor
         if (m_systemSync) {
             std::string hudStr = "SYSTEM SYNC | CPU: " + std::to_string(static_cast<int>(m_sysMonitor.GetCpuUsage())) + 
                                  "% | RAM: " + std::to_string(static_cast<int>(m_sysMonitor.GetRamUsage())) + "%";

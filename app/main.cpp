@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
     } else {
         // Fallback to the aquarium for any other value
         sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::AquariumScene>(
-            120, 67, fishCount, bubbleCount, jellyCount
+            120, 67, fishCount, bubbleCount, jellyCount, systemSync
         ));
     }
 

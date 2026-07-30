@@ -1,12 +1,13 @@
 #include <cmath>
+#include <string>
 
 #include "engine/types.h"
 #include "worlds/aquarium.h"
 
 namespace ASCIIpaper::Worlds {
 
-    AquariumScene::AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount) 
-        : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_rng(std::random_device{}()) {
+    AquariumScene::AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount, bool systemSync) 
+        : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_systemSync(systemSync), m_rng(std::random_device{}()) {
         InitializeWorld(fishCount, bubbleCount, jellyCount);
     }
 
@@ -15,12 +16,13 @@ namespace ASCIIpaper::Worlds {
         m_bubbles.clear();
         m_seaweeds.clear();
         m_jellyfishes.clear();
+        m_corals.clear();
     }
 
     void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCount) {
         // Setup random distributions to keep entities inside the boundaries
         std::uniform_real_distribution<float> xDist(2.0f, m_width - 5.0f);
-        std::uniform_real_distribution<float> yDist(4.0f, m_height - 6.0f); // Keep them away from extreme edges
+        std::uniform_real_distribution<float> yDist(4.0f, m_height - 10.0f); // Keep them away from extreme edges
         std::uniform_real_distribution<float> fSpeedDist(2.0f, 5.0f);
         std::uniform_real_distribution<float> phaseDist(0.0f, 6.28f); // 0 to 2*PI for offsets
         std::uniform_int_distribution<int> dirDist(0, 1);
@@ -72,6 +74,21 @@ namespace ASCIIpaper::Worlds {
             });
         }
 
+        std::uniform_int_distribution<int> coralColorDist(150, 255);
+        std::uniform_int_distribution<int> coralTypeDist(0, 2);
+        for(int i = 0; i < 12; ++i) {
+            char sym = '&';
+            if (coralTypeDist(m_rng) == 1) sym = '%';
+            else if (coralTypeDist(m_rng) == 2) sym = 'Y';
+            
+            m_corals.push_back({
+                swXDist(m_rng), m_height - 5, sym,
+                static_cast<uint8_t>(coralColorDist(m_rng)), // Bright Reds/Pinks
+                static_cast<uint8_t>(coralColorDist(m_rng) / 2),
+                static_cast<uint8_t>(coralColorDist(m_rng) / 2) 
+            });
+        }
+
         // Spawn jellyfish with random positions, speeds, and pulse offsets
         std::uniform_real_distribution<float> jSpeedDist(0.5f, 1.5f);
         for (int i = 0; i < jellyCount; ++i) {
@@ -83,10 +100,71 @@ namespace ASCIIpaper::Worlds {
                 Engine::VerticalDirection::Up // Start by floating upwards
             });
         }
+
+        m_crab = {
+            static_cast<float>(m_width / 2),    // Start in the middle
+            static_cast<float>(m_height - 4),   // Rest on the very bottom row
+            8.0f,                               // Scurry speed
+            Engine::Direction::Right,
+            0.0f,                               // Timer
+            true,                               // isMoving
+            220, 200, 180                       // Tan shell color
+        };
     }
 
     void AquariumScene::Update(float deltaTime) {
         m_timeAccumulator += deltaTime;
+
+        float cpuMultiplier = 1.0f;
+        float ramMultiplier = 1.0f;
+
+         // Poll the system monitor if sync is enabled
+         // We use CPU usage to dynamically scale the movement speed of all living creatures
+         // We use RAM usage to speed up the water current (bubbles and seaweed sway)
+        if (m_systemSync) {
+            m_sysMonitor.Update(deltaTime);
+            float currentCpu = m_sysMonitor.GetCpuUsage();
+            float currentRam = m_sysMonitor.GetRamUsage();
+
+            cpuMultiplier = 1.0f + (currentCpu / 33.3f); 
+            ramMultiplier = 1.0f + (currentRam / 50.0f); 
+        }
+
+        // Apply RAM Multiplier to our global time to speed up wave physics
+        m_timeAccumulator += deltaTime * ramMultiplier;
+
+        // Move Fish
+        for (auto& fish : m_fishes) {
+            fish.changeTimer -= deltaTime;
+            if (fish.changeTimer <= 0.0f) {
+                std::uniform_real_distribution<float> vyDist(-1.5f, 1.5f);
+                std::uniform_real_distribution<float> timerDist(2.0f, 6.0f);
+                fish.vy = vyDist(m_rng);
+                fish.changeTimer = timerDist(m_rng);
+            }
+
+            // Apply CPU Multiplier to swim speed
+            fish.x += fish.vx * cpuMultiplier * deltaTime;
+            fish.y += fish.vy * cpuMultiplier * deltaTime;
+            
+            if (fish.x <= 1.0f) {
+                fish.x = 1.0f;
+                fish.vx = std::abs(fish.vx); 
+                fish.direction = Engine::Direction::Right; 
+            } else if (fish.x >= m_width - 4.0f) {
+                fish.x = m_width - 4.0f;
+                fish.vx = -std::abs(fish.vx); 
+                fish.direction = Engine::Direction::Left;  
+            }
+
+            if (fish.y <= 1.0f) {
+                fish.y = 1.0f;
+                fish.vy = std::abs(fish.vy); 
+            } else if (fish.y >= m_height - 6.0f) { 
+                fish.y = m_height - 6.0f;
+                fish.vy = -std::abs(fish.vy); 
+            }
+        }
 
         // Move Fish
         for (auto& fish : m_fishes) {
@@ -164,6 +242,33 @@ namespace ASCIIpaper::Worlds {
             if (jelly.x <= 1.0f) jelly.x = 1.0f;
             if (jelly.x >= m_width - 3.0f) jelly.x = m_width - 3.0f;
         }
+
+        // Update the Hermit Crab's state machine
+        // The crab will scurry across the floor for a few seconds
+        // then pause to rest. When it wakes up, it may flip directions
+        m_crab.timer += deltaTime;
+        if (m_crab.isMoving) {
+            m_crab.x += m_crab.speed * static_cast<float>(m_crab.direction) * deltaTime;
+            if (m_crab.timer > 4.0f) {
+                m_crab.isMoving = false;
+                m_crab.timer = 0.0f;
+            }
+            
+            if (m_crab.x > m_width - 4) m_crab.direction = Engine::Direction::Left;
+            else if (m_crab.x < 2) m_crab.direction = Engine::Direction::Right;
+            
+        } else {
+            if (m_crab.timer > 2.0f) {
+                m_crab.isMoving = true;
+                m_crab.timer = 0.0f;
+                
+                std::uniform_int_distribution<int> dirDist(0, 1);
+                if (dirDist(m_rng) == 0) {
+                    m_crab.direction = (m_crab.direction == Engine::Direction::Right) ? 
+                        Engine::Direction::Left : Engine::Direction::Right;
+                }
+            }
+        }
     }
 
     void AquariumScene::Draw(Engine::CharacterGrid& grid) {
@@ -191,6 +296,20 @@ namespace ASCIIpaper::Worlds {
             int ix = static_cast<int>(bubble.x);
             int iy = static_cast<int>(bubble.y);
             grid.SetCell(ix, iy, bubble.symbol, 135, 206, 235);
+        }
+
+        // Draw coral
+        for (const auto& coral : m_corals) {
+            grid.SetCell(coral.x, coral.y, coral.symbol, coral.r, coral.g, coral.b);
+        }
+
+        // Draw sandy floor
+        for (int y = m_height - 4; y < m_height; ++y) {
+            for (int x = 0; x < m_width; ++x) {
+                // Darken the sand slightly as it gets deeper
+                uint8_t colorOffset = static_cast<uint8_t>((y - (m_height - 4)) * 10);
+                grid.SetCell(x, y, '.', 200 - colorOffset, 180 - colorOffset, 100 - colorOffset);
+            }
         }
 
         // Draw Fish
@@ -234,6 +353,30 @@ namespace ASCIIpaper::Worlds {
                 // Animated tentacles
                 grid.SetCell(ix, iy + 1, tentacle, 218, 112, 214);
                 grid.SetCell(ix + 2, iy + 1, tentacle, 218, 112, 214);
+            }
+        }
+
+        // Hermit crab 
+        int cx = static_cast<int>(m_crab.x);
+        int cy = static_cast<int>(m_crab.y);
+        if (cx >= 0 && cx < m_width - 2) {
+            if (m_crab.direction == Engine::Direction::Right) {
+                // Shell on the left, pincers on the right: @<
+                grid.SetCell(cx, cy, '@', m_crab.r, m_crab.g, m_crab.b);
+                grid.SetCell(cx + 1, cy, '<', 255, 100, 100); // Red claws
+            } else {
+                // Pincers on the left, shell on the right: >@
+                grid.SetCell(cx, cy, '>', 255, 100, 100); // Red claws
+                grid.SetCell(cx + 1, cy, '@', m_crab.r, m_crab.g, m_crab.b);
+            }
+        }
+
+        // Draw Debug HUD
+        if (m_systemSync) {
+            std::string hudStr = "SYSTEM SYNC | CPU: " + std::to_string(static_cast<int>(m_sysMonitor.GetCpuUsage())) + 
+                                 "% | RAM: " + std::to_string(static_cast<int>(m_sysMonitor.GetRamUsage())) + "%";
+            for (size_t i = 0; i < hudStr.length(); ++i) {
+                grid.SetCell(2 + static_cast<int>(i), 2, hudStr[i], 0, 255, 255); 
             }
         }
     }
