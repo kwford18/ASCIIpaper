@@ -8,7 +8,8 @@ namespace ASCIIpaper::Engine {
     enum class WeatherType {
         None,
         Rain,
-        Snow
+        Snow,
+        Storm
     };
 
     struct Particle {
@@ -24,13 +25,20 @@ namespace ASCIIpaper::Engine {
 
         void Initialize(WeatherType type, int width, int height);
         void Update(float deltaTime);
-        void Draw(CharacterGrid& grid);
+        void Draw(CharacterGrid& grid, int maxDrawY = -1);
 
     private:
         WeatherType m_type = WeatherType::None;
         int m_width = 0;
         int m_height = 0;
         std::vector<Particle> m_particles;
+
+        // Lightning
+        float m_lightningTimer = 0.0f;
+        float m_lightningThreshold = 5.0f;
+        bool m_isLightning = false;
+        int m_lightningX = 0;
+        std::vector<std::pair<int, int>> m_currentBolt;
     };
 
 } // namespace ASCIIpaper::Engine

@@ -87,6 +87,7 @@ namespace ASCIIpaper::Worlds {
         Engine::WeatherType wType = Engine::WeatherType::None;
         if (m_weatherStr == "rain") wType = Engine::WeatherType::Rain;
         else if (m_weatherStr == "snow") wType = Engine::WeatherType::Snow;
+        else if (m_weatherStr == "storm") wType = Engine::WeatherType::Storm;
         
         m_weather.Initialize(wType, m_width, m_height);
     }
@@ -303,7 +304,7 @@ namespace ASCIIpaper::Worlds {
         }
 
         // Weather
-        m_weather.Draw(grid);
+        m_weather.Draw(grid, m_height - 20);
     }
 
 } // namespace ASCIIpaper::Worlds
