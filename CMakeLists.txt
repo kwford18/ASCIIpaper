@@ -78,6 +78,7 @@ add_executable(EngineTests
     tests/test_timer.cpp
     tests/test_scene.cpp
     tests/test_config.cpp
+    tests/test_weather.cpp
 )
 
 target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
