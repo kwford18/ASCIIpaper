@@ -60,3 +60,6 @@ _deps/
 *.env
 *.env/
 *.venv/
+
+# Configs
+*.ini

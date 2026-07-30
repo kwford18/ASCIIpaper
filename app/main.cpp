@@ -34,10 +34,16 @@ int main(int argc, char* argv[]) {
 
     // Extract variables with defaults
     std::string activeScene = config.GetString("scene", "aquarium");
-    int targetFps = config.GetInt("target_fps", 60);
+
+    // Aquarium config variables
+    int targetFps = config.GetInt("target_fps", 30);
     int fishCount = config.GetInt("fish_count", 6);
     int bubbleCount = config.GetInt("bubble_count", 15);
     int jellyCount = config.GetInt("jellyfish_count", 3);
+    
+    // City config variables
+    int carCount = config.GetInt("car_count", 12);
+    int starCount = config.GetInt("star_count", 40);
 
     // Initialize Engine
     Aquarium::Engine::Window window("ASCIIpaper", 1920, 1080);
@@ -58,7 +64,7 @@ int main(int argc, char* argv[]) {
 
     // Select the scene based on the config file
     if (activeScene == "city") {
-        sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::CityScene>(120, 67));
+        sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::CityScene>(120, 67, carCount, starCount));
     } else {
         // Fallback to the aquarium for any other value
         sceneManager.ChangeScene(std::make_unique<Aquarium::Worlds::AquariumScene>(
