@@ -7,7 +7,7 @@
 namespace ASCIIpaper::Worlds {
 
     AquariumScene::AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount, bool systemSync) 
-        : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_systemSync(systemSync), m_rng(std::random_device{}()) {
+        : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_baseFishCount(fishCount), m_systemSync(systemSync), m_rng(std::random_device{}()) {
         InitializeWorld(fishCount, bubbleCount, jellyCount);
     }
 
@@ -17,6 +17,7 @@ namespace ASCIIpaper::Worlds {
         m_seaweeds.clear();
         m_jellyfishes.clear();
         m_corals.clear();
+        m_shrimps.clear();
     }
 
     void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCount) {
@@ -42,11 +43,11 @@ namespace ASCIIpaper::Worlds {
 
             m_fishes.push_back({
                 xDist(m_rng), yDist(m_rng), vx, vyDist(m_rng), dir, phaseDist(m_rng), timerDist(m_rng),
-
                 // Assign random colors!
                 static_cast<uint8_t>(colorDist(m_rng)), 
                 static_cast<uint8_t>(colorDist(m_rng)), 
-                static_cast<uint8_t>(colorDist(m_rng))
+                static_cast<uint8_t>(colorDist(m_rng)),
+                false // isLeaving
             });
         }
 
@@ -68,9 +69,7 @@ namespace ASCIIpaper::Worlds {
         // Plant 6 stalks of seaweed at the bottom of the tank
         for (int i = 0; i < 6; ++i) {
             m_seaweeds.push_back({
-                swXDist(m_rng),
-                swHeightDist(m_rng),
-                swOffsetDist(m_rng)
+                swXDist(m_rng), swHeightDist(m_rng), swOffsetDist(m_rng)
             });
         }
 
@@ -93,11 +92,17 @@ namespace ASCIIpaper::Worlds {
         std::uniform_real_distribution<float> jSpeedDist(0.5f, 1.5f);
         for (int i = 0; i < jellyCount; ++i) {
             m_jellyfishes.push_back({
-                xDist(m_rng), 
-                yDist(m_rng), 
-                jSpeedDist(m_rng), 
-                phaseDist(m_rng),
+                xDist(m_rng), yDist(m_rng), jSpeedDist(m_rng), phaseDist(m_rng),
                 Engine::VerticalDirection::Up // Start by floating upwards
+            });
+        }
+
+        // Spawn shrimp
+        std::uniform_real_distribution<float> sSpeedDist(0.5f, 2.0f);
+        for (int i = 0; i < 12; ++i) {
+            char sym = (dirDist(m_rng) == 0) ? 'j' : ',';
+            m_shrimps.push_back({
+                xDist(m_rng), yDist(m_rng), sSpeedDist(m_rng), sSpeedDist(m_rng), phaseDist(m_rng), sym
             });
         }
 
@@ -116,21 +121,35 @@ namespace ASCIIpaper::Worlds {
         m_whale = {
             static_cast<float>(m_width) + 80.0f,
             static_cast<float>(m_height / 4),
-            -12.0f,
-            false,
-            0.0f
+            -12.0f, false, 0.0f
         };
     }
 
+    // ========== UPDATE LOGIC ==========
     void AquariumScene::Update(float deltaTime) {
-        m_timeAccumulator += deltaTime;
-
         float cpuMultiplier = 1.0f;
         float ramMultiplier = 1.0f;
 
-         // Poll the system monitor if sync is enabled
-         // We use CPU usage to dynamically scale the movement speed of all living creatures
-         // We use RAM usage to speed up the water current (bubbles and seaweed sway)
+        UpdateSystemMonitor(deltaTime, cpuMultiplier, ramMultiplier);
+
+        // Apply RAM Multiplier to our global time to speed up wave physics
+        m_timeAccumulator += deltaTime * ramMultiplier;
+
+        UpdateFishes(deltaTime, cpuMultiplier);
+        UpdateShrimps(deltaTime, cpuMultiplier);
+        UpdateBubbles(deltaTime);
+        UpdateJellyfishes(deltaTime, cpuMultiplier);
+        UpdateCrab(deltaTime, cpuMultiplier);
+        UpdateWhale(deltaTime, cpuMultiplier);
+    }
+
+    void AquariumScene::UpdateSystemMonitor(float deltaTime, float& cpuMultiplier, float& ramMultiplier) {
+        /*
+         * Poll the system monitor if sync is enabled
+         * CPU usage scales the movement speed of all living creatures.
+         * RAM usage scales the water current (bubbles and seaweed sway),
+         * AND dynamically injects or flags fish for despawning!
+        */
         if (m_systemSync) {
             m_sysMonitor.Update(deltaTime);
             float currentCpu = m_sysMonitor.GetCpuUsage();
@@ -138,81 +157,105 @@ namespace ASCIIpaper::Worlds {
 
             cpuMultiplier = 1.0f + (currentCpu / 33.3f); 
             ramMultiplier = 1.0f + (currentRam / 50.0f); 
+
+            // Calculate target fish: Base count + up to 20 extra fish at 100% RAM
+            int targetFishCount = m_baseFishCount + static_cast<int>(currentRam / 5.0f);
+            
+            int activeFish = 0;
+            for (const auto& fish : m_fishes) {
+                if (!fish.isLeaving) activeFish++;
+            }
+
+            if (activeFish < targetFishCount) {
+                // Spawn a new fish just off screen
+                std::uniform_real_distribution<float> yDist(4.0f, m_height - 10.0f);
+                std::uniform_real_distribution<float> fSpeedDist(2.0f, 5.0f);
+                std::uniform_real_distribution<float> phaseDist(0.0f, 6.28f);
+                std::uniform_real_distribution<float> timerDist(1.0f, 5.0f);
+                std::uniform_int_distribution<int> colorDist(100, 255);
+                std::uniform_int_distribution<int> dirDist(0, 1);
+
+                Engine::Direction dir = dirDist(m_rng) == 0 ? Engine::Direction::Left : Engine::Direction::Right;
+                float vx = fSpeedDist(m_rng);
+                if (dir == Engine::Direction::Left) vx = -vx;
+                
+                float startX = (dir == Engine::Direction::Right) ? -5.0f : static_cast<float>(m_width + 5);
+
+                m_fishes.push_back({
+                    startX, yDist(m_rng), vx, 0.0f, dir, phaseDist(m_rng), timerDist(m_rng),
+                    static_cast<uint8_t>(colorDist(m_rng)), 
+                    static_cast<uint8_t>(colorDist(m_rng)), 
+                    static_cast<uint8_t>(colorDist(m_rng)),
+                    false
+                });
+            } else if (activeFish > targetFishCount) {
+                // Flag one fish to gracefully leave the tank
+                for (auto& fish : m_fishes) {
+                    if (!fish.isLeaving) {
+                        fish.isLeaving = true;
+                        break;
+                    }
+                }
+            }
         }
+    }
 
-        // Apply RAM Multiplier to our global time to speed up wave physics
-        m_timeAccumulator += deltaTime * ramMultiplier;
-
-        // Move Fish
-        for (auto& fish : m_fishes) {
-            fish.changeTimer -= deltaTime;
-            if (fish.changeTimer <= 0.0f) {
+    void AquariumScene::UpdateFishes(float deltaTime, float cpuMultiplier) {
+        // Move Fish (iterator)
+        for (auto it = m_fishes.begin(); it != m_fishes.end(); ) {
+            it->changeTimer -= deltaTime;
+            if (it->changeTimer <= 0.0f) {
                 std::uniform_real_distribution<float> vyDist(-1.5f, 1.5f);
                 std::uniform_real_distribution<float> timerDist(2.0f, 6.0f);
-                fish.vy = vyDist(m_rng);
-                fish.changeTimer = timerDist(m_rng);
+                it->vy = vyDist(m_rng);
+                it->changeTimer = timerDist(m_rng);
             }
 
             // Apply CPU Multiplier to swim speed
-            fish.x += fish.vx * cpuMultiplier * deltaTime;
-            fish.y += fish.vy * cpuMultiplier * deltaTime;
+            it->x += it->vx * cpuMultiplier * deltaTime;
+            it->y += it->vy * cpuMultiplier * deltaTime;
             
-            if (fish.x <= 1.0f) {
-                fish.x = 1.0f;
-                fish.vx = std::abs(fish.vx); 
-                fish.direction = Engine::Direction::Right; 
-            } else if (fish.x >= m_width - 4.0f) {
-                fish.x = m_width - 4.0f;
-                fish.vx = -std::abs(fish.vx); 
-                fish.direction = Engine::Direction::Left;  
-            }
+            if (it->isLeaving) {
+                if (it->x < -10.0f || it->x > m_width + 10.0f) {
+                    it = m_fishes.erase(it);
+                    continue;
+                }
+            } else {
+                // Checking vx ensures dynamically spawned fish can smoothly swim in from off-screen
+                if (it->x <= 1.0f && it->vx < 0.0f) {
+                    it->x = 1.0f;
+                    it->vx = std::abs(it->vx); 
+                    it->direction = Engine::Direction::Right; 
+                } else if (it->x >= m_width - 4.0f && it->vx > 0.0f) {
+                    it->x = m_width - 4.0f;
+                    it->vx = -std::abs(it->vx); 
+                    it->direction = Engine::Direction::Left;  
+                }
 
-            if (fish.y <= 1.0f) {
-                fish.y = 1.0f;
-                fish.vy = std::abs(fish.vy); 
-            } else if (fish.y >= m_height - 6.0f) { 
-                fish.y = m_height - 6.0f;
-                fish.vy = -std::abs(fish.vy); 
+                if (it->y <= 1.0f && it->vy < 0.0f) {
+                    it->y = 1.0f;
+                    it->vy = std::abs(it->vy); 
+                } else if (it->y >= m_height - 6.0f && it->vy > 0.0f) { 
+                    it->y = m_height - 6.0f;
+                    it->vy = -std::abs(it->vy); 
+                }
             }
+            ++it;
         }
+    }
 
-        // Move Fish
-        for (auto& fish : m_fishes) {
-            
-            // Randomly wander up and down over time
-            fish.changeTimer -= deltaTime;
-            if (fish.changeTimer <= 0.0f) {
-                std::uniform_real_distribution<float> vyDist(-1.5f, 1.5f);
-                std::uniform_real_distribution<float> timerDist(2.0f, 6.0f);
-                fish.vy = vyDist(m_rng);
-                fish.changeTimer = timerDist(m_rng);
-            }
+    void AquariumScene::UpdateShrimps(float deltaTime, float cpuMultiplier) {
+        // Move Shrimp
+        for (auto& shrimp : m_shrimps) {
+            shrimp.x += shrimp.vx * cpuMultiplier * deltaTime;
+            shrimp.y += shrimp.vy * cpuMultiplier * deltaTime;
 
-            // Apply 2D Velocity
-            fish.x += fish.vx * deltaTime;
-            fish.y += fish.vy * deltaTime;
-            
-            // X-Axis Wall Bouncing
-            if (fish.x <= 1.0f) {
-                fish.x = 1.0f;
-                fish.vx = std::abs(fish.vx); // Force right
-                fish.direction = Engine::Direction::Right; 
-            } else if (fish.x >= m_width - 4.0f) {
-                fish.x = m_width - 4.0f;
-                fish.vx = -std::abs(fish.vx); // Force left
-                fish.direction = Engine::Direction::Left;  
-            }
-
-            // Y-Axis Wall Bouncing
-            if (fish.y <= 1.0f) {
-                fish.y = 1.0f;
-                fish.vy = std::abs(fish.vy); // Force down
-            } else if (fish.y >= m_height - 3.0f) {
-                fish.y = m_height - 3.0f;
-                fish.vy = -std::abs(fish.vy); // Force up
-            }
+            if (shrimp.x <= 1.0f || shrimp.x >= m_width - 2.0f) shrimp.vx = -shrimp.vx;
+            if (shrimp.y <= 1.0f || shrimp.y >= m_height - 4.0f) shrimp.vy = -shrimp.vy;
         }
+    }
 
+    void AquariumScene::UpdateBubbles(float deltaTime) {
         // Move Bubbles
         for (auto& bubble : m_bubbles) {
             bubble.y -= bubble.speed * deltaTime;
@@ -224,7 +267,9 @@ namespace ASCIIpaper::Worlds {
                 bubble.x = xDist(m_rng);
             }
         }
+    }
 
+    void AquariumScene::UpdateJellyfishes(float deltaTime, float cpuMultiplier) {
         // Move jellyfish
         for (auto& jelly : m_jellyfishes) {
             // Pulse logic
@@ -232,7 +277,7 @@ namespace ASCIIpaper::Worlds {
             float pulseMultiplier = 1.0f + 0.8f * pulse;
             
             // Apply speed combined with their current vertical direction
-            jelly.y += jelly.speed * pulseMultiplier * static_cast<float>(jelly.verticalDir) * deltaTime;
+            jelly.y += jelly.speed * pulseMultiplier * cpuMultiplier * static_cast<float>(jelly.verticalDir) * deltaTime;
             
             // Gentle horizontal drift
             jelly.x += std::cos(m_timeAccumulator * 0.5f + jelly.pulseOffset) * 0.3f * deltaTime;
@@ -252,13 +297,17 @@ namespace ASCIIpaper::Worlds {
             if (jelly.x <= 1.0f) jelly.x = 1.0f;
             if (jelly.x >= m_width - 3.0f) jelly.x = m_width - 3.0f;
         }
+    }
 
-        // Update the Hermit Crab's state machine
-        // The crab will scurry across the floor for a few seconds
-        // then pause to rest. When it wakes up, it may flip directions
+    void AquariumScene::UpdateCrab(float deltaTime, float cpuMultiplier) {
+        /*
+         * Update the Hermit Crab's state machine
+         * The crab will scurry across the floor for a few seconds
+         * then pause to rest. When it wakes up, it may flip directions
+         */
         m_crab.timer += deltaTime;
         if (m_crab.isMoving) {
-            m_crab.x += m_crab.speed * static_cast<float>(m_crab.direction) * deltaTime;
+            m_crab.x += m_crab.speed * static_cast<float>(m_crab.direction) * cpuMultiplier * deltaTime;
             if (m_crab.timer > 4.0f) {
                 m_crab.isMoving = false;
                 m_crab.timer = 0.0f;
@@ -279,7 +328,9 @@ namespace ASCIIpaper::Worlds {
                 }
             }
         }
+    }
 
+    void AquariumScene::UpdateWhale(float deltaTime, float cpuMultiplier) {
         // Background whale
         if (!m_whale.active) {
             m_whale.timer += deltaTime;
@@ -301,9 +352,18 @@ namespace ASCIIpaper::Worlds {
         }
     }
 
+
+    // ========== DRAW LOGIC ==========
     void AquariumScene::Draw(Engine::CharacterGrid& grid) {
         grid.Clear();
+        
+        DrawBackground(grid);
+        DrawEntities(grid);
+        DrawForeground(grid);
+        DrawHUD(grid);
+    }
 
+    void AquariumScene::DrawBackground(Engine::CharacterGrid& grid) {
         /*
          * Draw the background Whale.
          * Draw this BEFORE the seaweed, fish, and bubbles so that
@@ -324,7 +384,6 @@ namespace ASCIIpaper::Worlds {
             
             for (size_t r = 0; r < whaleArt.size(); ++r) {
                 for (size_t c = 0; c < whaleArt[r].length(); ++c) {
-                    
                     if (whaleArt[r][c] != ' ' && (wx + static_cast<int>(c)) >= 0 && (wx + static_cast<int>(c)) < m_width) {
                         // Dark blue/grey to look distant and massive
                         grid.SetCell(wx + static_cast<int>(c), wy + static_cast<int>(r), whaleArt[r][c], 40, 60, 100); 
@@ -350,13 +409,6 @@ namespace ASCIIpaper::Worlds {
             }
         }
 
-        // Draw Bubbles
-        for (const auto& bubble : m_bubbles) {
-            int ix = static_cast<int>(bubble.x);
-            int iy = static_cast<int>(bubble.y);
-            grid.SetCell(ix, iy, bubble.symbol, 135, 206, 235);
-        }
-
         // Draw coral
         for (const auto& coral : m_corals) {
             grid.SetCell(coral.x, coral.y, coral.symbol, coral.r, coral.g, coral.b);
@@ -369,6 +421,15 @@ namespace ASCIIpaper::Worlds {
                 uint8_t colorOffset = static_cast<uint8_t>((y - (m_height - 4)) * 10);
                 grid.SetCell(x, y, '.', 200 - colorOffset, 180 - colorOffset, 100 - colorOffset);
             }
+        }
+    }
+
+    void AquariumScene::DrawEntities(Engine::CharacterGrid& grid) {
+        // Draw Bubbles
+        for (const auto& bubble : m_bubbles) {
+            int ix = static_cast<int>(bubble.x);
+            int iy = static_cast<int>(bubble.y);
+            grid.SetCell(ix, iy, bubble.symbol, 135, 206, 235);
         }
 
         // Draw Fish
@@ -391,9 +452,20 @@ namespace ASCIIpaper::Worlds {
             }
         }
 
-        // Jellyfish - drawn as a 3x2 sprite
-        // (o)
-        // / \ .
+        // Draw Shrimp
+        for (const auto& shrimp : m_shrimps) {
+            int ix = static_cast<int>(shrimp.x);
+            int iy = static_cast<int>(shrimp.y + std::sin(m_timeAccumulator * 6.0f + shrimp.wobbleOffset) * 0.5f);
+            if (ix >= 0 && ix < m_width && iy >= 0 && iy < m_height - 2) {
+                grid.SetCell(ix, iy, shrimp.symbol, 255, 120, 100); // Shrimp pink/orange
+            }
+        }
+
+        /*
+         * Jellyfish - drawn as a 3x2 sprite
+         * (o)
+         * / \ .
+         */
         for (const auto& jelly : m_jellyfishes) {
             int ix = static_cast<int>(jelly.x);
             int iy = static_cast<int>(jelly.y);
@@ -414,7 +486,9 @@ namespace ASCIIpaper::Worlds {
                 grid.SetCell(ix + 2, iy + 1, tentacle, 218, 112, 214);
             }
         }
+    }
 
+    void AquariumScene::DrawForeground(Engine::CharacterGrid& grid) {
         // Hermit crab  
         int cx = static_cast<int>(m_crab.x);
         int cy = static_cast<int>(m_crab.y);
@@ -429,7 +503,9 @@ namespace ASCIIpaper::Worlds {
                 grid.SetCell(cx + 1, cy, '@', m_crab.r, m_crab.g, m_crab.b);
             }
         }
+    }
 
+    void AquariumScene::DrawHUD(Engine::CharacterGrid& grid) {
         // Draw Debug HUD
         if (m_systemSync) {
             std::string hudStr = "SYSTEM SYNC | CPU: " + std::to_string(static_cast<int>(m_sysMonitor.GetCpuUsage())) + 

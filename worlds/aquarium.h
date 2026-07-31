@@ -16,6 +16,7 @@ namespace ASCIIpaper::Worlds {
         float wobbleOffset;
         float changeTimer;    
         uint8_t r, g, b;
+        bool isLeaving = false;
     };
 
     // Data structure for a single jellyfish
@@ -30,14 +31,14 @@ namespace ASCIIpaper::Worlds {
     struct Bubble {
         float x, y;
         float speed;
-        char symbol; // 'o' or 'O'
+        char symbol; 
     };
 
     // Data structure for a single seaweed
     struct Seaweed {
         int x;
         int height;
-        float swayOffset; // Random offset so they don't sway in unison
+        float swayOffset; 
     };
 
     // Data structure for coral
@@ -64,6 +65,14 @@ namespace ASCIIpaper::Worlds {
         bool active;
         float timer;
     };
+
+    // Data structure for shrimp
+    struct Shrimp {
+        float x, y;
+        float vx, vy;
+        float wobbleOffset;
+        char symbol;
+    };
     
 
     class AquariumScene : public Engine::Scene {
@@ -88,6 +97,9 @@ namespace ASCIIpaper::Worlds {
         int m_height;
         float m_timeAccumulator;
 
+        // Baseline population
+        int m_baseFishCount;
+
         bool m_systemSync;
         Engine::SystemMonitor m_sysMonitor;
 
@@ -97,6 +109,7 @@ namespace ASCIIpaper::Worlds {
         std::vector<Seaweed> m_seaweeds;
         std::vector<Jellyfish> m_jellyfishes;
         std::vector<Coral> m_corals;
+        std::vector<Shrimp> m_shrimps;
 
         HermitCrab m_crab;
         Whale m_whale;
@@ -106,6 +119,21 @@ namespace ASCIIpaper::Worlds {
         
         // Helper to spawn initial entities
         void InitializeWorld(int fishCount, int bubbleCount, int jellyCount);
+
+        // Modular update helpers
+        void UpdateSystemMonitor(float deltaTime, float& cpuMultiplier, float& ramMultiplier);
+        void UpdateFishes(float deltaTime, float cpuMultiplier);
+        void UpdateShrimps(float deltaTime, float cpuMultiplier);
+        void UpdateBubbles(float deltaTime);
+        void UpdateJellyfishes(float deltaTime, float cpuMultiplier);
+        void UpdateCrab(float deltaTime, float cpuMultiplier);
+        void UpdateWhale(float deltaTime, float cpuMultiplier);
+
+        // Modular draw helpers
+        void DrawBackground(Engine::CharacterGrid& grid);
+        void DrawEntities(Engine::CharacterGrid& grid);
+        void DrawForeground(Engine::CharacterGrid& grid);
+        void DrawHUD(Engine::CharacterGrid& grid);
     };
 
 } // namespace ASCIIpaper::Worlds
