@@ -61,6 +61,9 @@ namespace ASCIIpaper::Worlds {
             });
         }
 
+        // Floor Occupation Tracker to prevent overlapping
+        std::vector<bool> xOccupied(m_width, false);
+
         // Distribtions for seaweed placement and height
         std::uniform_int_distribution<int> swXDist(2, m_width - 3);
         std::uniform_int_distribution<int> swHeightDist(3, 8); 
@@ -68,20 +71,31 @@ namespace ASCIIpaper::Worlds {
 
         // Plant 6 stalks of seaweed at the bottom of the tank
         for (int i = 0; i < 6; ++i) {
-            m_seaweeds.push_back({
-                swXDist(m_rng), swHeightDist(m_rng), swOffsetDist(m_rng)
-            });
+            int x = swXDist(m_rng);
+            while (xOccupied[x]) x = swXDist(m_rng); // Find an empty spot
+            xOccupied[x] = true;
+
+            m_seaweeds.push_back({ x, swHeightDist(m_rng), swOffsetDist(m_rng) });
         }
 
         std::uniform_int_distribution<int> coralColorDist(150, 255);
         std::uniform_int_distribution<int> coralTypeDist(0, 2);
         for(int i = 0; i < 12; ++i) {
+            int x = swXDist(m_rng);
+            int attempts = 0;
+            while (xOccupied[x] && attempts < 10) { // Don't infinite loop if crowded
+                x = swXDist(m_rng);
+                attempts++;
+            }
+            if (xOccupied[x]) continue; // Skip if we couldn't find a spot
+            xOccupied[x] = true;
+
             char sym = '&';
             if (coralTypeDist(m_rng) == 1) sym = '%';
             else if (coralTypeDist(m_rng) == 2) sym = 'Y';
             
             m_corals.push_back({
-                swXDist(m_rng), m_height - 5, sym,
+                x, m_height - 5, sym,
                 static_cast<uint8_t>(coralColorDist(m_rng)), // Bright Reds/Pinks
                 static_cast<uint8_t>(coralColorDist(m_rng) / 2),
                 static_cast<uint8_t>(coralColorDist(m_rng) / 2) 
@@ -352,7 +366,6 @@ namespace ASCIIpaper::Worlds {
         }
     }
 
-
     // ========== DRAW LOGIC ==========
     void AquariumScene::Draw(Engine::CharacterGrid& grid) {
         grid.Clear();
@@ -396,7 +409,8 @@ namespace ASCIIpaper::Worlds {
         for (const auto& weed : m_seaweeds) {
             // Build the seaweed from the bottom up
             for (int i = 0; i < weed.height; ++i) {
-                int drawY = (m_height - 2) - i; 
+                // Seaweed now safely roots at m_height - 5
+                int drawY = (m_height - 5) - i; 
                 
                 // Calculate a gentle sway using the accumulator and the segment height
                 float sway = std::sin(m_timeAccumulator * 2.0f + weed.swayOffset + i * 0.5f);
