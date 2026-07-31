@@ -1,60 +1,205 @@
 #include "platform/desktop.h"
 #include <iostream>
 #include <cwchar>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <SDL3/SDL.h>
 
-// Include the Windows API
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
+
+// Menu Action IDs
+#define ID_TRAY_EXIT           2000
+#define ID_SCENE_AQUARIUM      2001
+#define ID_SCENE_CITY          2002
+#define ID_SYNC_ON             2003
+#define ID_SYNC_OFF            2004
+#define ID_WEATHER_CLEAR       2005
+#define ID_WEATHER_RAIN        2006
+#define ID_WEATHER_SNOW        2007
+#define ID_WEATHER_STORM       2008
 
 namespace ASCIIpaper::Platform {
 
     namespace {
         constexpr UINT WM_TRAYICON = WM_APP + 1;
         constexpr UINT TRAY_UID = 1;
-        constexpr UINT ID_TRAY_EXIT = 1001;
         constexpr int HOTKEY_ID_QUIT = 1;
 
         NOTIFYICONDATAW g_trayIcon = {};
         bool g_trayIconAdded = false;
         volatile bool g_shouldQuit = false;
         HWND g_trayHwnd = nullptr;
+        bool g_configChanged = false;
+
+        /*
+         * Helper to get the guaranteed absolute path to the config file.
+         * This prevents the app from accidentally writing to a ghost config.ini
+         * if the Working Directory gets messed up by the OS or build system.
+         */
+        std::string GetConfigPath() {
+            std::string path = "config.ini";
+            const char* basePath = SDL_GetBasePath(); 
+            if (basePath) {
+                path = std::string(basePath) + "config.ini";
+            }
+            return path;
+        }
+
+        /*
+         * A lightweight helper to extract a specific value from the config.
+         * Used exclusively by the tray menu to determine where to place checkmarks
+         * before the menu is drawn to the screen.
+         */
+        std::string GetActiveSetting(const std::string& searchKey, const std::string& defaultVal) {
+            std::ifstream inFile(GetConfigPath());
+            std::string line;
+
+            if (inFile.is_open()) {
+                while (std::getline(inFile, line)) {
+                    size_t eqPos = line.find('=');
+
+                    if (eqPos != std::string::npos) {
+                        std::string key = line.substr(0, eqPos);
+                        key.erase(key.find_last_not_of(" \t\r\n") + 1);
+                        key.erase(0, key.find_first_not_of(" \t\r\n"));
+                        
+                        if (key == searchKey) {
+                            std::string val = line.substr(eqPos + 1);
+                            val.erase(val.find_last_not_of(" \t\r\n") + 1);
+                            val.erase(0, val.find_first_not_of(" \t\r\n"));
+                            return val;
+                        }
+                    }
+                }
+            }
+            return defaultVal;
+        }
+
+        void UpdateConfig(const std::string& key, const std::string& value) {
+            std::vector<std::string> lines;
+            std::string configPath = GetConfigPath();
+            std::ifstream inFile(configPath);
+            bool found = false;
+            std::string line;
+            
+            if (inFile.is_open()) {
+                while (std::getline(inFile, line)) {
+                    // Ensure match the exact key and not a substring 
+                    if (line.find(key) == 0 && (line[key.length()] == ' ' || line[key.length()] == '=')) { 
+                        lines.push_back(key + " = " + value);
+                        found = true;
+                    } else {
+                        lines.push_back(line);
+                    }
+                }
+                inFile.close();
+            }
+            
+            if (!found) {
+                lines.push_back(key + " = " + value);
+            }
+
+            std::ofstream outFile(configPath);
+            for (const auto& l : lines) {
+                outFile << l << "\n";
+            }
+            outFile.close();
+
+            g_configChanged = true;
+        }
 
         LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-        switch (msg) {
-            case WM_TRAYICON: {
-                UINT mouseMsg = LOWORD(lParam);
-                if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
-                    POINT pt;
-                    GetCursorPos(&pt);
+            switch (msg) {
+                case WM_TRAYICON: {
+                    UINT mouseMsg = LOWORD(lParam);
+                    if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_LBUTTONUP) {
+                        POINT pt;
+                        GetCursorPos(&pt);
+                        SetForegroundWindow(hwnd);
 
-                    HMENU menu = CreatePopupMenu();
-                    AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit ASCIIpaper");
+                        // Read the current settings to apply checkmarks
+                        std::string currentScene = GetActiveSetting("scene", "aquarium");
+                        std::string currentSync = GetActiveSetting("system_sync", "false");
+                        std::string currentWeather = GetActiveSetting("weather", "rain");
 
-                    // Required so the menu closes properly if the user clicks away
-                    SetForegroundWindow(hwnd);
-                    TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, NULL);
-                    DestroyMenu(menu);
+                        HMENU hMenu = CreatePopupMenu();
+                        
+                        // Scene Menu
+                        HMENU hSceneMenu = CreatePopupMenu();
+                        AppendMenuW(hSceneMenu, MF_STRING, ID_SCENE_AQUARIUM, L"Aquarium");
+                        AppendMenuW(hSceneMenu, MF_STRING, ID_SCENE_CITY, L"City");
+                        
+                        // Apply checkmark to active scene
+                        if (currentScene == "city") {
+                            CheckMenuItem(hSceneMenu, ID_SCENE_CITY, MF_CHECKED);
+                        } else {
+                            CheckMenuItem(hSceneMenu, ID_SCENE_AQUARIUM, MF_CHECKED);
+                        }
+
+                        // Sync Menu
+                        HMENU hSyncMenu = CreatePopupMenu();
+                        AppendMenuW(hSyncMenu, MF_STRING, ID_SYNC_ON, L"On");
+                        AppendMenuW(hSyncMenu, MF_STRING, ID_SYNC_OFF, L"Off");
+
+                        // Apply checkmark to active sync state
+                        if (currentSync == "true" || currentSync == "1") {
+                            CheckMenuItem(hSyncMenu, ID_SYNC_ON, MF_CHECKED);
+                        } else {
+                            CheckMenuItem(hSyncMenu, ID_SYNC_OFF, MF_CHECKED);
+                        }
+
+                        // Weather Menu
+                        HMENU hWeatherMenu = CreatePopupMenu();
+                        AppendMenuW(hWeatherMenu, MF_STRING, ID_WEATHER_CLEAR, L"Clear");
+                        AppendMenuW(hWeatherMenu, MF_STRING, ID_WEATHER_RAIN, L"Rain");
+                        AppendMenuW(hWeatherMenu, MF_STRING, ID_WEATHER_SNOW, L"Snow");
+                        AppendMenuW(hWeatherMenu, MF_STRING, ID_WEATHER_STORM, L"Storm");
+
+                        // Apply checkmark to active weather
+                        if (currentWeather == "clear") CheckMenuItem(hWeatherMenu, ID_WEATHER_CLEAR, MF_CHECKED);
+                        else if (currentWeather == "snow") CheckMenuItem(hWeatherMenu, ID_WEATHER_SNOW, MF_CHECKED);
+                        else if (currentWeather == "storm") CheckMenuItem(hWeatherMenu, ID_WEATHER_STORM, MF_CHECKED);
+                        else CheckMenuItem(hWeatherMenu, ID_WEATHER_RAIN, MF_CHECKED);
+
+                        AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSceneMenu, L"Scene");
+                        AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSyncMenu, L"System Sync");
+                        AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hWeatherMenu, L"Weather");
+                        AppendMenuW(hMenu, MF_SEPARATOR, 0, NULL);
+                        AppendMenuW(hMenu, MF_STRING, ID_TRAY_EXIT, L"Exit ASCIIpaper");
+
+                        TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN, pt.x, pt.y, 0, hwnd, NULL);
+                        DestroyMenu(hMenu);
+                    }
+                    return 0;
                 }
-                return 0; // Handled
-            }
-            case WM_COMMAND: {
-                if (LOWORD(wParam) == ID_TRAY_EXIT) {
-                    g_shouldQuit = true;
-                    return 0; // Handled
+                case WM_COMMAND: {
+                    int wmId = LOWORD(wParam);
+                    switch (wmId) {
+                        case ID_TRAY_EXIT:      g_shouldQuit = true; break;
+                        case ID_SCENE_AQUARIUM: UpdateConfig("scene", "aquarium"); break;
+                        case ID_SCENE_CITY:     UpdateConfig("scene", "city"); break;
+                        case ID_SYNC_ON:        UpdateConfig("system_sync", "true"); break;
+                        case ID_SYNC_OFF:       UpdateConfig("system_sync", "false"); break;
+                        case ID_WEATHER_CLEAR:  UpdateConfig("weather", "clear"); break;
+                        case ID_WEATHER_RAIN:   UpdateConfig("weather", "rain"); break;
+                        case ID_WEATHER_SNOW:   UpdateConfig("weather", "snow"); break;
+                        case ID_WEATHER_STORM:  UpdateConfig("weather", "storm"); break;
+                    }
+                    return 0;
                 }
-                break;
-            }
-            case WM_HOTKEY: {
-                if (wParam == HOTKEY_ID_QUIT) {
-                    g_shouldQuit = true;
-                    return 0; // Handled
+                case WM_HOTKEY: {
+                    if (wParam == HOTKEY_ID_QUIT) {
+                        g_shouldQuit = true;
+                        return 0;
+                    }
+                    break;
                 }
-                break;
             }
+            return DefWindowProcW(hwnd, msg, wParam, lParam);
         }
-        return DefWindowProcW(hwnd, msg, wParam, lParam);
-    }
 
         /* 
          * The tray icon needs an owner window that can actually become the
@@ -79,16 +224,15 @@ namespace ASCIIpaper::Platform {
         }
     }
 
-    bool ShouldQuit() {
-        return g_shouldQuit;
-    }
+    bool ShouldQuit() { return g_shouldQuit; }
+    bool HasConfigChanged() { return g_configChanged; }
+    void ClearConfigChanged() { g_configChanged = false; }
 
-    // A callback used to search through active Windows to find the one rendering desktop icons
+    // A callback used to search through active Windows to find the one rendering desktop icon
     BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
         HWND p = FindWindowExW(hwnd, NULL, L"SHELLDLL_DefView", NULL);
         if (p != NULL) {
             HWND* workerW = reinterpret_cast<HWND*>(lParam);
-            // Change FindWindowEx to FindWindowExW
             *workerW = FindWindowExW(NULL, hwnd, L"WorkerW", NULL);
         }
         return TRUE;
@@ -175,10 +319,7 @@ namespace ASCIIpaper::Platform {
             SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &result);
 
             workerW = FindTargetWorkerW(progman);
-
-            if (workerW == NULL) {
-                Sleep(50); // give the shell a moment to actually create/update it
-            }
+            if (workerW == NULL) Sleep(50);
         }
 
         /* 
@@ -226,6 +367,7 @@ namespace ASCIIpaper::Platform {
                      SWP_FRAMECHANGED | SWP_NOACTIVATE);
         ShowWindow(sdlHwnd, SW_SHOW);
 
+
         /* 
          * Mark this as a tool window (keeps it out of taskbar/alt-tab) and
          * mouse-transparent (clicks fall through to whatever's below in
@@ -240,8 +382,8 @@ namespace ASCIIpaper::Platform {
         SetWindowLongW(sdlHwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW);
         SetWindowPos(sdlHwnd, NULL, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE);
-
         
+
         /*
          * Set up a way to actually stop the program: a system tray icon with
          * an Exit option, plus a Ctrl+Alt+Q global hotkey as a backup. Since
@@ -259,14 +401,19 @@ namespace ASCIIpaper::Platform {
         g_trayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         g_trayIcon.uCallbackMessage = WM_TRAYICON;
 
+        g_trayIcon.hIcon = ExtractIconW(GetModuleHandle(NULL), L"ASCIIpaper.exe", 0);
+
         /* 
          * Use MAKEINTRESOURCEW with the raw resource ID (32512 = IDI_APPLICATION)
          * instead of the IDI_APPLICATION macro directly: that macro expands to
          * the ANSI (LPSTR) form unless the project defines UNICODE/_UNICODE,
          * which doesn't match LoadIconW's LPCWSTR parameter.
         */
-        g_trayIcon.hIcon = LoadIconW(NULL, MAKEINTRESOURCEW(32512));
-        wcsncpy_s(g_trayIcon.szTip, L"ASCIIpaper (right-click to exit)", _TRUNCATE);
+        if (g_trayIcon.hIcon == NULL) {
+            g_trayIcon.hIcon = LoadIconW(NULL, MAKEINTRESOURCEW(32512));
+        }
+
+        wcsncpy_s(g_trayIcon.szTip, L"ASCIIpaper Settings", _TRUNCATE);
 
         /* 
          * Defensively remove any stale icon left behind by a previous run that
@@ -278,7 +425,6 @@ namespace ASCIIpaper::Platform {
         g_trayIconAdded = Shell_NotifyIconW(NIM_ADD, &g_trayIcon);
         if (!g_trayIconAdded) {
             std::cerr << "Failed to create tray icon. GetLastError=" << GetLastError() << std::endl;
-            OutputDebugStringW(L"ASCIIpaper: Shell_NotifyIconW(NIM_ADD) failed\n");
         } else {
             // Opt into modern notification-icon behavior (correct popup menu
             // positioning, etc.) instead of legacy pre-Vista behavior.

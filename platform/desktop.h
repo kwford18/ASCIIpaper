@@ -9,4 +9,8 @@ namespace ASCIIpaper::Platform {
     bool ShouldQuit();
     void ShutdownDesktopIntegration();
 
+    // For hot config reloads
+    bool HasConfigChanged();
+    void ClearConfigChanged();
+
 } // namespace ASCIIpaper::Platform
