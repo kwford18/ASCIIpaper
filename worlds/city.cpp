@@ -8,7 +8,7 @@ namespace ASCIIpaper::Worlds {
 
     CityScene::CityScene(int width, int height, int carCount, int starCount, const std::string& weather, bool systemSync) 
         : m_width(width), m_height(height), m_timeAccumulator(0.0f), 
-          m_carCount(carCount), m_starCount(starCount), m_weatherStr(weather),
+          m_baseCarCount(carCount), m_starCount(starCount), m_weatherStr(weather),
           m_systemSync(systemSync),
           m_trainTimer(0.0f), m_trainX(-50.0f), m_trainActive(false),
           m_trainSpeed(45.0f), m_trainCars(3),
@@ -50,9 +50,9 @@ namespace ASCIIpaper::Worlds {
         std::uniform_int_distribution<int> carColorDist(150, 255);
         
         // Spawn cars evenly spaced to prevent immediate clumping
-        float spacing = static_cast<float>(m_width) / m_carCount;
+        float spacing = static_cast<float>(m_width) / m_baseCarCount;
 
-        for (int i = 0; i < m_carCount; ++i) {
+        for (int i = 0; i < m_baseCarCount; ++i) {
             int lane = i % 4; // 0 to 3
             int yPos = (m_height - 16) + (lane * 2); // Lanes at -13, -11, -9, -7
             bool goesRight = (lane < 2); // Top two lanes go right, bottom two go left
@@ -64,7 +64,8 @@ namespace ASCIIpaper::Worlds {
                 goesRight ? Engine::Direction::Right : Engine::Direction::Left, 
                 static_cast<uint8_t>(carColorDist(m_rng)),
                 static_cast<uint8_t>(carColorDist(m_rng)),
-                static_cast<uint8_t>(carColorDist(m_rng))
+                static_cast<uint8_t>(carColorDist(m_rng)),
+                false // isLeaving
             });
         }
 
@@ -95,16 +96,24 @@ namespace ASCIIpaper::Worlds {
         m_weather.Initialize(wType, m_width, m_height);
     }
 
+    // ========== UPDATE LOGIC ==========
     void CityScene::Update(float deltaTime) {
         m_timeAccumulator += deltaTime;
-
         float cpuMultiplier = 1.0f;
 
+        UpdateSystemMonitor(deltaTime, cpuMultiplier);
+        UpdateEnvironment(deltaTime);
+        UpdateTraffic(deltaTime, cpuMultiplier);
+        UpdateTrain(deltaTime, cpuMultiplier);
+        UpdateUfo(deltaTime);
+    }
+
+    void CityScene::UpdateSystemMonitor(float deltaTime, float& cpuMultiplier) {
         /*
          * Poll the system monitor if sync is enabled
          * We use CPU usage to dynamically scale car and train speed, and lightning frequency
          * We use RAM usage to increase building lights
-         */
+        */
         if (m_systemSync) {
             m_sysMonitor.Update(deltaTime);
             float currentCpu = m_sysMonitor.GetCpuUsage(); // 0.0 to 100.0
@@ -132,8 +141,47 @@ namespace ASCIIpaper::Worlds {
             float minFreq = std::max(1.0f, 10.0f - (9.0f * (currentCpu / 100.0f)));
             float maxFreq = std::max(3.0f, 20.0f - (17.0f * (currentCpu / 100.0f)));
             m_weather.SetLightningFrequency(minFreq, maxFreq);
+
+            // DYNAMIC TRAFFIC DENSITY
+            // Calculate target cars: Base count + up to 20 extra cars at 100% RAM
+            int targetCarCount = m_baseCarCount + static_cast<int>(currentRam / 5.0f);
+            
+            int activeCars = 0;
+            for (const auto& car : m_cars) {
+                if (!car.isLeaving) activeCars++;
+            }
+
+            if (activeCars < targetCarCount) {
+                // Spawn a new car safely just off-screen
+                std::uniform_real_distribution<float> speedDist(15.0f, 35.0f);
+                std::uniform_int_distribution<int> carColorDist(150, 255);
+                
+                int lane = m_rng() % 4;
+                int yPos = (m_height - 16) + (lane * 2);
+                bool goesRight = (lane < 2); 
+                float startX = goesRight ? -10.0f : static_cast<float>(m_width + 10);
+
+                m_cars.push_back({
+                    startX, yPos, speedDist(m_rng),
+                    goesRight ? Engine::Direction::Right : Engine::Direction::Left, 
+                    static_cast<uint8_t>(carColorDist(m_rng)),
+                    static_cast<uint8_t>(carColorDist(m_rng)),
+                    static_cast<uint8_t>(carColorDist(m_rng)),
+                    false
+                });
+            } else if (activeCars > targetCarCount) {
+                // Flag a car to take the nearest exit
+                for (auto& car : m_cars) {
+                    if (!car.isLeaving) {
+                        car.isLeaving = true;
+                        break;
+                    }
+                }
+            }
         }
-        
+    }
+
+    void CityScene::UpdateEnvironment(float deltaTime) {
         m_weather.Update(deltaTime);
 
         // Update Stars
@@ -151,37 +199,9 @@ namespace ASCIIpaper::Worlds {
                 }
             }
         }
+    }
 
-        // Update Train
-        if (!m_trainActive) {
-            m_trainTimer += deltaTime;
-            if (m_trainTimer >= 20.0f) { 
-                m_trainActive = true;
-                m_trainX = -60.0f; 
-                m_trainTimer = 0.0f;
-
-                // Link Train properties to hardware
-                if (m_systemSync) {
-                    // High RAM = Massive freight train (up to 9 cars)
-                    m_trainCars = 3 + static_cast<int>(m_sysMonitor.GetRamUsage() / 15.0f); 
-                    // High CPU = Bullet train
-                    m_trainSpeed = 45.0f + m_sysMonitor.GetCpuUsage(); 
-                } else {
-                    m_trainCars = 3;
-                    m_trainSpeed = 45.0f;
-                }
-            }
-        } else {
-            m_trainX += m_trainSpeed * deltaTime; 
-            if (m_trainX > m_width + 20) m_trainActive = false; 
-        }
-
-        // Traffic
-        for (auto& car : m_cars) {
-            // Apply the CPU multiplier directly to the speed!
-            car.x += car.speed * cpuMultiplier * static_cast<float>(car.direction) * deltaTime;
-        }
-
+    void CityScene::UpdateTraffic(float deltaTime, float cpuMultiplier) {
         // Collision Check to prevent cars from passing through each other
         for (size_t i = 0; i < m_cars.size(); ++i) {
             for (size_t j = 0; j < m_cars.size(); ++j) {
@@ -207,20 +227,61 @@ namespace ASCIIpaper::Worlds {
             }
         }
 
-        // Screen Wrap
-        for (auto& car : m_cars) {
-            if (car.direction == Engine::Direction::Right && car.x > m_width + 4) {
-                car.x = -4.0f;
-                // Give it a new random speed when it wraps around so traffic changes
-                std::uniform_real_distribution<float> speedDist(15.0f, 35.0f);
-                car.speed = speedDist(m_rng); 
-            } else if (car.direction == Engine::Direction::Left && car.x < -4) {
-                car.x = static_cast<float>(m_width + 4);
-                std::uniform_real_distribution<float> speedDist(15.0f, 35.0f);
-                car.speed = speedDist(m_rng);
-            }
-        }
+        // Apply Movement & Iteration Despawn
+        for (auto it = m_cars.begin(); it != m_cars.end(); ) {
+            // Apply the CPU multiplier directly to the speed!
+            it->x += it->speed * cpuMultiplier * static_cast<float>(it->direction) * deltaTime;
 
+            if (it->isLeaving) {
+                // If it drove completely offscreen, delete it
+                if (it->x < -15.0f || it->x > m_width + 15.0f) {
+                    it = m_cars.erase(it);
+                    continue;
+                }
+            } else {
+                // Wrap around logic for permanent residents (Give it buffer space so we don't cause instant collisions)
+                if (it->direction == Engine::Direction::Right && it->x > m_width + 4) {
+                    it->x = -10.0f; 
+                    // Give it a new random speed when it wraps around so traffic changes
+                    std::uniform_real_distribution<float> speedDist(15.0f, 35.0f);
+                    it->speed = speedDist(m_rng); 
+                } else if (it->direction == Engine::Direction::Left && it->x < -4) {
+                    it->x = static_cast<float>(m_width + 10);
+                    std::uniform_real_distribution<float> speedDist(15.0f, 35.0f);
+                    it->speed = speedDist(m_rng);
+                }
+            }
+            ++it;
+        }
+    }
+
+    void CityScene::UpdateTrain(float deltaTime, float cpuMultiplier) {
+        // Update Train
+        if (!m_trainActive) {
+            m_trainTimer += deltaTime;
+            if (m_trainTimer >= 20.0f) { 
+                m_trainActive = true;
+                m_trainX = -60.0f; 
+                m_trainTimer = 0.0f;
+
+                // Link Train properties to hardware
+                if (m_systemSync) {
+                    // High RAM = Massive freight train (up to 9 cars)
+                    m_trainCars = 3 + static_cast<int>(m_sysMonitor.GetRamUsage() / 15.0f); 
+                    // High CPU = Bullet train
+                    m_trainSpeed = 45.0f + m_sysMonitor.GetCpuUsage(); 
+                } else {
+                    m_trainCars = 3;
+                    m_trainSpeed = 45.0f;
+                }
+            }
+        } else {
+            m_trainX += m_trainSpeed * deltaTime; 
+            if (m_trainX > m_width + 20) m_trainActive = false; 
+        }
+    }
+
+    void CityScene::UpdateUfo(float deltaTime) {
         // UFO State Machine
         if (m_ufo.state == UfoState::Waiting) {
             m_ufo.timer += deltaTime;
@@ -260,9 +321,18 @@ namespace ASCIIpaper::Worlds {
         }
     }
 
+    // ========== UPDATE LOGIC ==========
     void CityScene::Draw(Engine::CharacterGrid& grid) {
         grid.Clear();
 
+        DrawBackground(grid);
+        DrawCityscape(grid);
+        DrawTraffic(grid);
+        DrawForeground(grid);
+        DrawHUD(grid);
+    }
+
+    void CityScene::DrawBackground(Engine::CharacterGrid& grid) {
         // Stars
         for (const auto& star : m_stars) {
             if (star.isTwinkling) {
@@ -274,7 +344,9 @@ namespace ASCIIpaper::Worlds {
 
         // Moon
         grid.SetCell(m_width - 25, 10, 'C', 255, 255, 200);
+    }
 
+    void CityScene::DrawCityscape(Engine::CharacterGrid& grid) {
         // Buildings
         for (const auto& building : m_buildings) {
             int winIndex = 0;
@@ -295,7 +367,9 @@ namespace ASCIIpaper::Worlds {
                 }
             }
         }
+    }
 
+    void CityScene::DrawTraffic(Engine::CharacterGrid& grid) {
         // Highway
         for (int x = 0; x < m_width; ++x) {
             if (x % 4 != 0) { 
@@ -317,7 +391,9 @@ namespace ASCIIpaper::Worlds {
             grid.SetCell(ix + 3, iy, 'o', 180, 180, 180); 
             grid.SetCell(ix + 4, iy, ']', car.r, car.g, car.b);
         }
+    }
 
+    void CityScene::DrawForeground(Engine::CharacterGrid& grid) {
         // Train tracks
         for (int x = 0; x < m_width; ++x) {
             grid.SetCell(x, m_height - 5, '_', 100, 70, 50); // Wooden ties
@@ -358,7 +434,9 @@ namespace ASCIIpaper::Worlds {
 
         // Weather
         m_weather.Draw(grid, m_height - 20);
+    }
 
+    void CityScene::DrawHUD(Engine::CharacterGrid& grid) {
         // System monitor
         if (m_systemSync) {
             std::string hudStr = "SYSTEM SYNC | CPU: " + std::to_string(static_cast<int>(m_sysMonitor.GetCpuUsage())) + 

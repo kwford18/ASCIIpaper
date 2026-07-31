@@ -26,6 +26,7 @@ namespace ASCIIpaper::Worlds {
         float speed;
         Engine::Direction direction;
         uint8_t r, g, b;
+        bool isLeaving = false; // Flag for highway exits
     };
 
     // Twinkling star
@@ -71,7 +72,7 @@ namespace ASCIIpaper::Worlds {
         float m_timeAccumulator;
 
         // Car
-        int m_carCount;
+        int m_baseCarCount; // Tracks baseline traffic
 
         // Star
         int m_starCount;
@@ -104,6 +105,20 @@ namespace ASCIIpaper::Worlds {
         float m_lastRamUsage = -1.0f; // Track RAM to prevent flickering lights
 
         void InitializeWorld();
+
+        // Modular update helpers
+        void UpdateSystemMonitor(float deltaTime, float& cpuMultiplier);
+        void UpdateTraffic(float deltaTime, float cpuMultiplier);
+        void UpdateTrain(float deltaTime, float cpuMultiplier);
+        void UpdateUfo(float deltaTime);
+        void UpdateEnvironment(float deltaTime);
+
+        // Modular draw helpers
+        void DrawBackground(Engine::CharacterGrid& grid);
+        void DrawCityscape(Engine::CharacterGrid& grid);
+        void DrawTraffic(Engine::CharacterGrid& grid);
+        void DrawForeground(Engine::CharacterGrid& grid);
+        void DrawHUD(Engine::CharacterGrid& grid);
     };
 
 } // namespace ASCIIpaper::Worlds
