@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <random>
+#include <cstdint>
+
 #include "engine/grid.h"
 #include "engine/scene.h"
 #include "engine/types.h"

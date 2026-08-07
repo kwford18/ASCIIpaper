@@ -1,4 +1,4 @@
-#include "engine/Grid.h"
+#include "engine/grid.h"
 
 namespace ASCIIpaper::Engine {
 

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "engine/Grid.h"
+#include "engine/grid.h"
 
 using namespace ASCIIpaper::Engine;
 

@@ -4,6 +4,7 @@ project(ASCIIpaper VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Enable testing globally
 enable_testing()
@@ -72,9 +73,13 @@ add_library(Platform STATIC
 target_include_directories(Platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Platform PRIVATE SDL3::SDL3)
 
-# Only compile the Windows code if we are building on Windows
 if(WIN32)
     target_sources(Platform PRIVATE platform/windows_desktop.cpp)
+elseif(UNIX AND NOT APPLE)
+    # Find X11 for Linux desktop background integration
+    find_package(X11 REQUIRED)
+    target_sources(Platform PRIVATE platform/linux_desktop.cpp)
+    target_link_libraries(Platform PRIVATE X11::X11)
 endif()
 
 # Application Executable

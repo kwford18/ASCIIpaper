@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <random>
+#include <cstdint>
 
 #include "engine/scene.h"
 #include "engine/types.h"
