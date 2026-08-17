@@ -1,4 +1,7 @@
 #include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
 #include <SDL3/SDL_main.h>
 
 #include "engine/window.h"
@@ -12,8 +15,39 @@
 #include "worlds/city.h"
 #include "platform/desktop.h"
 
+// Helper function to safely overwrite a specific key in config.ini
+void UpdateConfigFile(const std::string& configPath, const std::string& key, const std::string& value) {
+    std::vector<std::string> lines;
+    std::ifstream inFile(configPath);
+    bool found = false;
+    std::string line;
+    
+    if (inFile.is_open()) {
+        while (std::getline(inFile, line)) {
+            // Check if the line starts with our key (ignoring partial matches like "fish_speed" if we search for "fish")
+            if (line.find(key) == 0 && (line[key.length()] == ' ' || line[key.length()] == '=')) { 
+                lines.push_back(key + " = " + value);
+                found = true;
+            } else {
+                lines.push_back(line);
+            }
+        }
+        inFile.close();
+    }
+    
+    // If the key wasn't in the file at all, append it to the bottom
+    if (!found) {
+        lines.push_back(key + " = " + value);
+    }
+
+    std::ofstream outFile(configPath);
+    for (const auto& l : lines) {
+        outFile << l << "\n";
+    }
+}
+
 int main(int argc, char* argv[]) {
-    // Get configuration file
+    // Get configuration file path
     std::string configPath = "config.ini";
     const char* basePath = SDL_GetBasePath(); 
     
@@ -21,6 +55,19 @@ int main(int argc, char* argv[]) {
         configPath = std::string(basePath) + "config.ini";
     }
 
+    // CLI Mode
+    // If the user runs ./ASCIIpaper set [key] [value], update the config and exit immediately
+    if (argc >= 3 && std::string(argv[1]) == "set") {
+        std::string key = argv[2];
+        std::string value = (argc >= 4) ? argv[3] : "";
+        
+        UpdateConfigFile(configPath, key, value);
+        std::cout << "Success: Set '" << key << "' to '" << value << "'\n";
+        return 0; // Exit so we don't accidentally launch a second engine instance
+    }
+
+    // Standard/Daemon Mode
+    // Load config and launch engine
     ASCIIpaper::Engine::Config config;
     if (config.Load(configPath)) {
         std::cout << "Loaded config.ini successfully.\n";
@@ -41,9 +88,9 @@ int main(int argc, char* argv[]) {
     ASCIIpaper::Engine::SceneManager sceneManager;
 
     /*
-     * We wrap the scene creation inside a lambda function.
-     * This allows us to instantly wipe the current scene and load a brand
-     * new one at runtime whenever the system tray modifies the config file!
+     * Wrap the scene creation inside a lambda function.
+     * This allows the engine to instantly wipe the current scene and load a brand
+     * new one at runtime whenever the config is modified
      */
     auto loadScene = [&]() {
         // Load config variables

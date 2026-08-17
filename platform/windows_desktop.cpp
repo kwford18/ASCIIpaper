@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <SDL3/SDL.h>
+#include <filesystem>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -33,6 +34,9 @@ namespace ASCIIpaper::Platform {
         volatile bool g_shouldQuit = false;
         HWND g_trayHwnd = nullptr;
         bool g_configChanged = false;
+
+        // For CLI hot reloading
+        std::filesystem::file_time_type g_lastWriteTime;
 
         /*
          * Helper to get the guaranteed absolute path to the config file.
@@ -224,8 +228,22 @@ namespace ASCIIpaper::Platform {
         }
     }
 
+    bool HasConfigChanged() {
+        // Check if the user clicke the tray UI
+        if (g_configChanged) return true;
+
+        // Check if the config file has been modified via CLI/external editor
+        std::error_code ec;
+        auto currentWriteTime = std::filesystem::last_write_time(GetConfigPath(), ec);
+        if (!ec && currentWriteTime > g_lastWriteTime) {
+            g_lastWriteTime = currentWriteTime;
+            g_configChanged = true;
+        }
+
+        return g_configChanged;
+    }
+
     bool ShouldQuit() { return g_shouldQuit; }
-    bool HasConfigChanged() { return g_configChanged; }
     void ClearConfigChanged() { g_configChanged = false; }
 
     // A callback used to search through active Windows to find the one rendering desktop icon
@@ -435,6 +453,10 @@ namespace ASCIIpaper::Platform {
         if (!RegisterHotKey(g_trayHwnd, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
             std::cerr << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError() << std::endl;
         }
+
+        // For CLI hot reloading, store the last write time of the config file at startup
+        std::error_code ec;
+        g_lastWriteTime = std::filesystem::last_write_time(GetConfigPath(), ec);
     }
 
     void ShutdownDesktopIntegration() {

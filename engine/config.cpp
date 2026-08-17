@@ -3,6 +3,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
 
 namespace ASCIIpaper::Engine {
 
@@ -13,6 +14,42 @@ namespace ASCIIpaper::Engine {
     }
 
     bool Config::Load(const std::string& filename) {
+        // Create default config file if there isn't one
+        // This ensures the CLI can always be used and that the app can be ran immediately
+        std::ifstream checkFile(filename);
+        if (!checkFile.good()) {
+            checkFile.close();
+            std::cout << "config.ini not found. Generating default configuration at: " << filename << std::endl;
+            
+            std::ofstream newConfig(filename);
+            if (newConfig.is_open()) {
+                newConfig << "# scene: aquarium/city\n";
+                newConfig << "scene = aquarium\n\n";
+
+                newConfig << "# Target FPS\n";
+                newConfig << "target_fps = 30\n\n";
+
+                newConfig << "# System sync hookup\n";
+                newConfig << "system_sync = true\n\n";
+
+                newConfig << "# Aquarium config variables\n";
+                newConfig << "fish_count = 6\n";
+                newConfig << "bubble_count = 15\n";
+                newConfig << "jellyfish_count = 3\n\n";
+
+                newConfig << "# City config variables\n";
+                newConfig << "car_count = 12\n";
+                newConfig << "star_count = 40\n";
+                newConfig << "weather = storm\n";
+                newConfig.close();
+            } else {
+                std::cerr << "Failed to generate default config.ini!" << std::endl;
+                return false;
+            }
+        } else {
+            checkFile.close();
+        }
+
         std::ifstream file(filename);
         if (!file.is_open()) return false;
         return LoadFromStream(file);
@@ -36,6 +73,7 @@ namespace ASCIIpaper::Engine {
         return true;
     }
 
+    // Helper functions
     int Config::GetInt(const std::string& key, int defaultValue) const {
         auto it = m_values.find(key);
         if (it != m_values.end()) {
@@ -72,11 +110,7 @@ namespace ASCIIpaper::Engine {
         std::transform(val.begin(), val.end(), val.begin(),
             [](unsigned char c){ return std::tolower(c); });
 
-        if (val == "true" || val == "1" || val == "yes" || val == "on") {
-            return true;
-        }
-        
-        return false;
+        return (val == "true" || val == "1" || val == "yes" || val == "on");
     }
 
 } // namespace ASCIIpaper::Engine
