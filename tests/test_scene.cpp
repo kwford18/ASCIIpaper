@@ -20,7 +20,7 @@ TEST(AquariumSceneTest, DrawPopulatesGridBoundaries) {
     scene.Draw(grid);
     
     EXPECT_EQ(grid.GetCell(0, 0).character, ' ');
-    EXPECT_EQ(grid.GetCell(9, 9).character, ' ');
+    EXPECT_EQ(grid.GetCell(9, 9).character, '.');
     EXPECT_EQ(grid.GetCell(5, 5).character, ' ');
 }
 

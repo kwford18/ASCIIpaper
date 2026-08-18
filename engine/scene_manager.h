@@ -10,6 +10,10 @@ namespace ASCIIpaper::Engine {
     public:
         SceneManager() = default;
 
+        // Returns a raw pointer so outside classes can 
+        // look at the scene without stealing ownership of it
+        Scene* GetCurrentScene() const { return m_currentScene.get(); }
+
         // Takes ownership of a new scene, destroying the old one if it exists
         void ChangeScene(std::unique_ptr<Scene> newScene);
 

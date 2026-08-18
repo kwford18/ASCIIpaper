@@ -3,6 +3,12 @@
 
 namespace ASCIIpaper::Engine {
 
+    namespace {
+        // This is initialized once on startup, making it more efficient than 
+        // creating a new random device for each instance
+        std::mt19937 g_weatherRng(std::random_device{}());
+    }
+
     void WeatherSystem::Initialize(WeatherType type, int width, int height) {
         m_type = type;
         m_width = width;
@@ -11,7 +17,6 @@ namespace ASCIIpaper::Engine {
 
         if (type == WeatherType::None) return;
 
-        std::mt19937 rng(std::random_device{}());
         std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(width));
         std::uniform_real_distribution<float> yDist(0.0f, static_cast<float>(height));
 
@@ -33,7 +38,7 @@ namespace ASCIIpaper::Engine {
             
             uint8_t c = (type == WeatherType::Rain || type == WeatherType::Storm) ? 120 : 255; 
             
-            m_particles.push_back({xDist(rng), yDist(rng), speedDist(rng), driftDist(rng), sym, c, c, c});
+            m_particles.push_back({xDist(g_weatherRng), yDist(g_weatherRng), speedDist(g_weatherRng), driftDist(g_weatherRng), sym, c, c, c});
         }
     }
 
@@ -48,9 +53,8 @@ namespace ASCIIpaper::Engine {
             // Screen wrapping
             if (p.y > static_cast<float>(m_height)) {
                 p.y = 0.0f;
-                std::mt19937 rng(std::random_device{}());
                 std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(m_width));
-                p.x = xDist(rng);
+                p.x = xDist(g_weatherRng);
             }
             if (p.x < 0.0f) p.x += m_width;
             if (p.x >= static_cast<float>(m_width)) p.x -= m_width;
@@ -70,18 +74,22 @@ namespace ASCIIpaper::Engine {
                     m_isLightning = true;
                     m_lightningTimer = 0.0f;
                     
-                    // Use the configurable limits for lightning duration
-                    m_lightningThreshold = m_lightningMin + static_cast<float>(rand()) / 
-                        (static_cast<float>(RAND_MAX / (m_lightningMax - m_lightningMin)));
+                    // Randomize the next lightning threshold
+                    std::uniform_real_distribution<float> threshDist(m_lightningMin, m_lightningMax);
+                    m_lightningThreshold = threshDist(g_weatherRng);
                     
                     // Generate a jagged bolt
-                    m_lightningX = rand() % (m_width - 10) + 5;
+                    std::uniform_int_distribution<int> xDist(5, m_width - 5);
+                    m_lightningX = xDist(g_weatherRng);
+                    
                     m_currentBolt.clear();
                     int currentX = m_lightningX;
                     
+                    std::uniform_int_distribution<int> zigZagDist(-1, 1);
+                    
                     for (int y = 0; y < m_height; ++y) {
                         m_currentBolt.push_back({currentX, y});
-                        if (y % 2 == 0) currentX += (rand() % 3) - 1; // zig-zag
+                        if (y % 2 == 0) currentX += zigZagDist(g_weatherRng); // zig-zag
                     }
                 }
             }
@@ -96,7 +104,6 @@ namespace ASCIIpaper::Engine {
 
         // Draw Lightning first so it goes behind buildings/cars but flashes the sky
         if (m_type == WeatherType::Storm && m_isLightning) {
-
             for (const auto& point : m_currentBolt) {
                 if (point.first >= 0 && point.first < m_width && point.second >= 0 && point.second < bottomLimit) {
                     grid.SetCell(point.first, point.second, '|', 255, 255, 200); // Bright white/yellow

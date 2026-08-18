@@ -1,5 +1,6 @@
 #include <cmath>
 #include <string>
+#include <algorithm>
 
 #include "engine/types.h"
 #include "worlds/aquarium.h"
@@ -22,8 +23,13 @@ namespace ASCIIpaper::Worlds {
 
     void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCount) {
         // Setup random distributions to keep entities inside the boundaries
-        std::uniform_real_distribution<float> xDist(2.0f, m_width - 5.0f);
-        std::uniform_real_distribution<float> yDist(4.0f, m_height - 10.0f); // Keep them away from extreme edges
+        // Setup random distributions to keep entities inside the boundaries
+        float maxX = std::max(2.1f, static_cast<float>(m_width - 5.0f));
+        std::uniform_real_distribution<float> xDist(2.0f, maxX);
+
+        float maxY = std::max(4.1f, static_cast<float>(m_height - 10.0f));
+        std::uniform_real_distribution<float> yDist(4.0f, maxY); // Keep them away from extreme edges
+
         std::uniform_real_distribution<float> fSpeedDist(2.0f, 5.0f);
         std::uniform_real_distribution<float> phaseDist(0.0f, 6.28f); // 0 to 2*PI for offsets
         std::uniform_int_distribution<int> dirDist(0, 1);
@@ -162,7 +168,7 @@ namespace ASCIIpaper::Worlds {
          * Poll the system monitor if sync is enabled
          * CPU usage scales the movement speed of all living creatures.
          * RAM usage scales the water current (bubbles and seaweed sway),
-         * AND dynamically injects or flags fish for despawning!
+         * and dynamically injects or flags fish for despawning!
         */
         if (m_systemSync) {
             m_sysMonitor.Update(deltaTime);
@@ -182,7 +188,9 @@ namespace ASCIIpaper::Worlds {
 
             if (activeFish < targetFishCount) {
                 // Spawn a new fish just off screen
-                std::uniform_real_distribution<float> yDist(4.0f, m_height - 10.0f);
+                float maxY = std::max(4.1f, static_cast<float>(m_height - 10.0f));
+                std::uniform_real_distribution<float> yDist(4.0f, maxY);
+
                 std::uniform_real_distribution<float> fSpeedDist(2.0f, 5.0f);
                 std::uniform_real_distribution<float> phaseDist(0.0f, 6.28f);
                 std::uniform_real_distribution<float> timerDist(1.0f, 5.0f);
@@ -277,7 +285,8 @@ namespace ASCIIpaper::Worlds {
             // If a bubble hits the top, respawn it at the bottom with a new random x position
             if (bubble.y <= 1.0f) {
                 bubble.y = static_cast<float>(m_height - 2);
-                std::uniform_real_distribution<float> xDist(1.0f, m_width - 2.0f);
+                float maxX = std::max(1.1f, static_cast<float>(m_width - 2.0f));
+                std::uniform_real_distribution<float> xDist(1.0f, maxX);
                 bubble.x = xDist(m_rng);
             }
         }
@@ -353,8 +362,10 @@ namespace ASCIIpaper::Worlds {
                 m_whale.x = static_cast<float>(m_width) + 60.0f; // Start safely offscreen to the right
                 
                 // Randomize its vertical swimming lane
-                std::uniform_real_distribution<float> whaleYDist(5.0f, m_height / 2.0f);
+                float maxWhaleY = std::max(5.1f, static_cast<float>(m_height) / 2.0f);
+                std::uniform_real_distribution<float> whaleYDist(5.0f, maxWhaleY);
                 m_whale.y = whaleYDist(m_rng);
+                
                 m_whale.timer = 0.0f;
             }
         } else {

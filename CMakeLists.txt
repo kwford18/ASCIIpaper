@@ -94,6 +94,10 @@ add_executable(EngineTests
     tests/test_scene.cpp
     tests/test_config.cpp
     tests/test_weather.cpp
+    tests/test_monitor.cpp
+    tests/test_scene_manager.cpp
+    tests/test_aquarium.cpp
+    tests/test_city.cpp
 )
 
 target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
