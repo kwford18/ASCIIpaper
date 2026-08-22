@@ -3,125 +3,149 @@
 
 namespace ASCIIpaper::Engine {
 
-    namespace {
-        // This is initialized once on startup, making it more efficient than 
-        // creating a new random device for each instance
-        std::mt19937 g_weatherRng(std::random_device{}());
+namespace {
+/*
+ * Lazily constructed on first use rather than at
+ * static initialization time, so a throw from std::random_device is a normal
+ * runtime exception instead of an uncatchable startup failure
+ */
+std::mt19937& WeatherRng() {
+    static std::mt19937 rng(std::random_device{}());
+    return rng;
+}
+} // namespace
+
+void WeatherSystem::Initialize(WeatherType type, int width, int height) {
+    m_type = type;
+    m_width = width;
+    m_height = height;
+    m_particles.clear();
+
+    if (type == WeatherType::None)
+        return;
+
+    std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(width));
+    std::uniform_real_distribution<float> yDist(0.0f, static_cast<float>(height));
+
+    // Heavy rain for storms
+    int particleCount =
+        (type == WeatherType::Storm) ? 200 : ((type == WeatherType::Rain) ? 150 : 100);
+
+    // Rain is fast and falls slightly right; Snow is slow and drifts
+    std::uniform_real_distribution<float> speedDist =
+        (type == WeatherType::Rain || type == WeatherType::Storm)
+            ? std::uniform_real_distribution<float>(30.0f, 50.0f)
+            : std::uniform_real_distribution<float>(5.0f, 15.0f);
+
+    std::uniform_real_distribution<float> driftDist =
+        (type == WeatherType::Rain || type == WeatherType::Storm)
+            ? std::uniform_real_distribution<float>(2.0f, 8.0f)
+            : std::uniform_real_distribution<float>(-5.0f, 5.0f);
+
+    std::mt19937& rng = WeatherRng();
+    m_particles.reserve(static_cast<size_t>(particleCount));
+    for (int i = 0; i < particleCount; ++i) {
+        char sym = (type == WeatherType::Rain || type == WeatherType::Storm) ? '|' : '*';
+        if (type == WeatherType::Snow && i % 2 == 0)
+            sym = '.'; // Mix small and large snowflakes
+
+        uint8_t c = (type == WeatherType::Rain || type == WeatherType::Storm) ? 120 : 255;
+
+        m_particles.push_back(
+            {xDist(rng), yDist(rng), speedDist(rng), driftDist(rng), sym, c, c, c});
+    }
+}
+
+void WeatherSystem::Update(float deltaTime) {
+    if (m_type == WeatherType::None)
+        return;
+
+    // Update Particles
+    for (auto& p : m_particles) {
+        p.y += p.speedY * deltaTime;
+        p.x += p.speedX * deltaTime;
+
+        // Screen wrapping
+        if (p.y > static_cast<float>(m_height)) {
+            p.y = 0.0f;
+            std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(m_width));
+            p.x = xDist(WeatherRng());
+        }
+
+        const float widthF = static_cast<float>(m_width);
+        if (p.x < 0.0f)
+            p.x += widthF;
+        if (p.x >= widthF)
+            p.x -= widthF;
     }
 
-    void WeatherSystem::Initialize(WeatherType type, int width, int height) {
-        m_type = type;
-        m_width = width;
-        m_height = height;
-        m_particles.clear();
+    // Lightning for storms
+    if (m_type == WeatherType::Storm) {
+        m_lightningTimer += deltaTime;
 
-        if (type == WeatherType::None) return;
-
-        std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(width));
-        std::uniform_real_distribution<float> yDist(0.0f, static_cast<float>(height));
-
-        // Heavy rain for storms
-        int particleCount = (type == WeatherType::Storm) ? 200 : ((type == WeatherType::Rain) ? 150 : 100); 
-        
-        // Rain is fast and falls slightly right; Snow is slow and drifts
-        std::uniform_real_distribution<float> speedDist = 
-            (type == WeatherType::Rain || type == WeatherType::Storm) ? std::uniform_real_distribution<float>(30.0f, 50.0f) 
-                                                                      : std::uniform_real_distribution<float>(5.0f, 15.0f);
-                                        
-        std::uniform_real_distribution<float> driftDist = 
-            (type == WeatherType::Rain || type == WeatherType::Storm) ? std::uniform_real_distribution<float>(2.0f, 8.0f) 
-                                                                      : std::uniform_real_distribution<float>(-5.0f, 5.0f);
-
-        for (int i = 0; i < particleCount; ++i) {
-            char sym = (type == WeatherType::Rain || type == WeatherType::Storm) ? '|' : '*';
-            if (type == WeatherType::Snow && i % 2 == 0) sym = '.'; // Mix small and large snowflakes
-            
-            uint8_t c = (type == WeatherType::Rain || type == WeatherType::Storm) ? 120 : 255; 
-            
-            m_particles.push_back({xDist(g_weatherRng), yDist(g_weatherRng), speedDist(g_weatherRng), driftDist(g_weatherRng), sym, c, c, c});
-        }
-    }
-
-    void WeatherSystem::Update(float deltaTime) {
-        if (m_type == WeatherType::None) return;
-
-        // Update Particles
-        for (auto& p : m_particles) {
-            p.y += p.speedY * deltaTime;
-            p.x += p.speedX * deltaTime;
-            
-            // Screen wrapping
-            if (p.y > static_cast<float>(m_height)) {
-                p.y = 0.0f;
-                std::uniform_real_distribution<float> xDist(0.0f, static_cast<float>(m_width));
-                p.x = xDist(g_weatherRng);
+        if (m_isLightning) {
+            if (m_lightningTimer > 0.15f) { // Flash lasts 0.15 seconds
+                m_isLightning = false;
+                m_lightningTimer = 0.0f;
             }
-            if (p.x < 0.0f) p.x += m_width;
-            if (p.x >= static_cast<float>(m_width)) p.x -= m_width;
-        }
+        } else {
+            if (m_lightningTimer > m_lightningThreshold) {
+                m_isLightning = true;
+                m_lightningTimer = 0.0f;
 
-        // Lightning for storms
-        if (m_type == WeatherType::Storm) {
-            m_lightningTimer += deltaTime;
+                // Randomize the next lightning threshold
+                std::uniform_real_distribution<float> threshDist(m_lightningMin, m_lightningMax);
+                m_lightningThreshold = threshDist(WeatherRng());
 
-            if (m_isLightning) {
-                if (m_lightningTimer > 0.15f) { // Flash lasts 0.15 seconds
-                    m_isLightning = false;
-                    m_lightningTimer = 0.0f;
-                }
-            } else {
-                if (m_lightningTimer > m_lightningThreshold) {
-                    m_isLightning = true;
-                    m_lightningTimer = 0.0f;
-                    
-                    // Randomize the next lightning threshold
-                    std::uniform_real_distribution<float> threshDist(m_lightningMin, m_lightningMax);
-                    m_lightningThreshold = threshDist(g_weatherRng);
-                    
-                    // Generate a jagged bolt
-                    std::uniform_int_distribution<int> xDist(5, m_width - 5);
-                    m_lightningX = xDist(g_weatherRng);
-                    
-                    m_currentBolt.clear();
-                    int currentX = m_lightningX;
-                    
-                    std::uniform_int_distribution<int> zigZagDist(-1, 1);
-                    
-                    for (int y = 0; y < m_height; ++y) {
-                        m_currentBolt.push_back({currentX, y});
-                        if (y % 2 == 0) currentX += zigZagDist(g_weatherRng); // zig-zag
-                    }
-                }
-            }
-        }
-    }
+                // Generate a jagged bolt
+                std::uniform_int_distribution<int> xDist(5, m_width - 5);
+                m_lightningX = xDist(WeatherRng());
 
-    void WeatherSystem::Draw(CharacterGrid& grid, int maxDrawY) {
-        if (m_type == WeatherType::None) return;
+                m_currentBolt.clear();
+                m_currentBolt.reserve(static_cast<size_t>(m_height));
+                int currentX = m_lightningX;
 
-        // Determine the cutoff line for the weather
-        int bottomLimit = (maxDrawY < 0) ? m_height : maxDrawY;
+                std::uniform_int_distribution<int> zigZagDist(-1, 1);
+                std::mt19937& rng = WeatherRng();
 
-        // Draw Lightning first so it goes behind buildings/cars but flashes the sky
-        if (m_type == WeatherType::Storm && m_isLightning) {
-            for (const auto& point : m_currentBolt) {
-                if (point.first >= 0 && point.first < m_width && point.second >= 0 && point.second < bottomLimit) {
-                    grid.SetCell(point.first, point.second, '|', 255, 255, 200); // Bright white/yellow
-                }
-            }
-        }
-
-        // Draw Particles
-        for (const auto& p : m_particles) {
-            int ix = static_cast<int>(p.x);
-            int iy = static_cast<int>(p.y);
-            if (ix >= 0 && ix < m_width && iy >= 0 && iy < bottomLimit) {
-                // Weather falls "behind" the foreground elements
-                if (grid.GetCell(ix, iy).character == ' ') {
-                    grid.SetCell(ix, iy, p.symbol, p.r, p.g, p.b);
+                for (int y = 0; y < m_height; ++y) {
+                    m_currentBolt.push_back({currentX, y});
+                    if (y % 2 == 0)
+                        currentX += zigZagDist(rng); // zig-zag
                 }
             }
         }
     }
+}
+
+void WeatherSystem::Draw(CharacterGrid& grid, int maxDrawY) {
+    if (m_type == WeatherType::None)
+        return;
+
+    // Determine the cutoff line for the weather
+    int bottomLimit = (maxDrawY < 0) ? m_height : maxDrawY;
+
+    // Draw Lightning first so it goes behind buildings/cars but flashes the sky
+    if (m_type == WeatherType::Storm && m_isLightning) {
+        for (const auto& point : m_currentBolt) {
+            if (point.first >= 0 && point.first < m_width && point.second >= 0 &&
+                point.second < bottomLimit) {
+                grid.SetCell(point.first, point.second, '|', 255, 255, 200); // Bright white/yellow
+            }
+        }
+    }
+
+    // Draw Particles
+    for (const auto& p : m_particles) {
+        int ix = static_cast<int>(p.x);
+        int iy = static_cast<int>(p.y);
+        if (ix >= 0 && ix < m_width && iy >= 0 && iy < bottomLimit) {
+            // Weather falls "behind" the foreground elements
+            if (grid.GetCell(ix, iy).character == ' ') {
+                grid.SetCell(ix, iy, p.symbol, p.r, p.g, p.b);
+            }
+        }
+    }
+}
 
 } // namespace ASCIIpaper::Engine

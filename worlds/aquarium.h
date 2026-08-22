@@ -90,12 +90,15 @@ class AquariumScene : public Engine::Scene {
     // Clears all entities from the scene
     void ClearEntities();
 
-    // Exposed strictly so our unit tests can verify spawning
+    // Exposed so unit tests can verify spawning
     size_t GetFishCount() const {
         return m_fishes.size();
     }
     size_t GetBubbleCount() const {
         return m_bubbles.size();
+    }
+    size_t GetJellyfishCount() const {
+        return m_jellyfishes.size();
     }
 
   private:

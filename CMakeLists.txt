@@ -27,12 +27,12 @@ else()
 endif()
 
 # Memory Profiling with AddressSanitizer 
-# TODO: Remove for 1.0 release since this is just for development and debugging
-set(USE_ASAN ON) 
+set(USE_ASAN OFF) # Turned off by default to avoid linker clashes during general development
 
 if(USE_ASAN)
     if(MSVC)
         add_compile_options(/fsanitize=address)
+        add_link_options(/INCREMENTAL:NO) # Prevents LNK4300 warning
     else()
         add_compile_options(-fsanitize=address -g)
         add_link_options(-fsanitize=address)
@@ -76,7 +76,9 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Disable clang-tidy for GoogleTest and GoogleMock to avoid unnecessary warnings
-set_target_properties(gtest gtest_main gmock gmock_main PROPERTIES CXX_CLANG_TIDY "")
+if(TARGET gtest)
+    set_target_properties(gtest gtest_main gmock gmock_main PROPERTIES CXX_CLANG_TIDY "")
+endif()
 
 # Fetch SDL3
 message(STATUS "Fetching SDL3 from source...")
@@ -91,14 +93,14 @@ set(SDL_TESTS OFF CACHE BOOL "Disable SDL3 tests" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL3 examples" FORCE)
 FetchContent_MakeAvailable(SDL3)
 
-# Disable clang-tidy for SDL3 to avoid unnecessary warnings
+# Disable clang-tidy for SDL3 to avoid unnecessary warnings safely
 if(TARGET SDL3-shared)
     set_target_properties(SDL3-shared PROPERTIES CXX_CLANG_TIDY "")
 endif()
-
 if(TARGET SDL3-static)
     set_target_properties(SDL3-static PROPERTIES CXX_CLANG_TIDY "")
 endif()
+
 # Core Engine Target
 add_library(Engine STATIC
     engine/grid.cpp
@@ -129,13 +131,12 @@ add_library(Worlds STATIC
 target_include_directories(Worlds PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Worlds PRIVATE Engine)
 
-# Platform Backend Target (Providing the header prevents empty static library errors)
+# Platform Backend Target
 add_library(Platform STATIC platform/desktop.h)
 target_include_directories(Platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Platform PRIVATE SDL3::SDL3)
 
 # Selectively compile the correct desktop integration
-# NOTE: Linux development is currently paused. It may be added later on
 if(WIN32)
     target_sources(Platform PRIVATE platform/windows_desktop.cpp)
 elseif(UNIX AND NOT APPLE)
@@ -145,7 +146,6 @@ elseif(UNIX AND NOT APPLE)
 endif()
 
 # Application Executable
-# The WIN32 tells Windows to hide the console window
 add_executable(ASCIIpaper WIN32 app/main.cpp)
 target_link_libraries(ASCIIpaper PRIVATE Engine Worlds Platform)
 
@@ -164,7 +164,6 @@ add_executable(EngineTests
 target_link_libraries(EngineTests PRIVATE Engine Worlds GTest::gtest_main)
 
 # Windows DLL Copy
-# Ensure the SDL3.dll is copied right next to the executables so they can run
 if(WIN32)
     add_custom_command(TARGET ASCIIpaper POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -172,7 +171,6 @@ if(WIN32)
         $<TARGET_FILE_DIR:ASCIIpaper>
     )
     
-    # Copy for the test executable to fix the 0xc0000135 crash
     add_custom_command(TARGET EngineTests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:SDL3::SDL3>
@@ -180,6 +178,6 @@ if(WIN32)
     )
 endif()
 
-# Register the test with CTest 
+# Register the test with CTest (Delayed until execution to prevent Missing DLL crashes)
 include(GoogleTest)
-gtest_discover_tests(EngineTests)
+gtest_discover_tests(EngineTests DISCOVERY_MODE PRE_TEST)

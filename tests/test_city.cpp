@@ -1,41 +1,56 @@
-#include <gtest/gtest.h>
+#include "engine/grid.h"
 #include "worlds/city.h"
+#include <gtest/gtest.h>
 
 using namespace ASCIIpaper::Worlds;
+using namespace ASCIIpaper::Engine;
 
 TEST(CityTest, InitializationDoesNotCrash) {
     int expectedCars = 10;
     int expectedStars = 35;
     std::string expectedWeather = "snow";
-    
-    // Create a City instance with your standard config values
+
+    // Create a City instance with standard config values
     CityScene scene(100, 50, expectedCars, expectedStars, expectedWeather, false);
-    
-    // If the scene allocates all its cars and stars without a segmentation fault, 
-    // the constructor is memory-safe!
-    SUCCEED();
-    
-    // Once you add getters to city.h, you can uncomment these!
-    // EXPECT_EQ(scene.GetCarCount(), expectedCars);
-    // EXPECT_EQ(scene.GetStarCount(), expectedStars);
+
+    // Verify the entities populated the vectors correctly
+    EXPECT_EQ(scene.GetCarCount(), expectedCars);
+    EXPECT_EQ(scene.GetStarCount(), expectedStars);
 }
 
 TEST(CityTest, EntitiesUpdateOverTime) {
     // Spin up a tiny city with 1 car, no stars, and clear weather
     CityScene scene(100, 50, 1, 0, "clear", false);
-    
+    CharacterGrid gridBefore(100, 50);
+    CharacterGrid gridAfter(100, 50);
+
+    // Capture the static initial frame
+    scene.Draw(gridBefore);
+
     // Force the simulation forward by 1 second
     scene.Update(1.0f);
-    
-    // Assuming you eventually add a way to inspect the grid or car positions,
-    // you would test that the car's X-coordinate is different than it was at 0.0f.
-    SUCCEED();
+
+    // Capture the new frame
+    scene.Draw(gridAfter);
+
+    // Prove the car actually drove across the grid
+    bool hasDifferences = false;
+    for (int y = 0; y < 50; ++y) {
+        for (int x = 0; x < 100; ++x) {
+            if (gridBefore.GetCell(x, y).character != gridAfter.GetCell(x, y).character) {
+                hasDifferences = true;
+                break;
+            }
+        }
+    }
+
+    EXPECT_TRUE(hasDifferences) << "Traffic did not move on the grid after Update() was called.";
 }
 
 TEST(CityTest, InvalidWeatherDefaultsSafely) {
     // If a user types a typo in the config or CLI (like "snnow")
     CityScene scene(100, 50, 10, 35, "snnow", false);
-    
+
     // The scene should still build successfully and default to "none/clear"
     // rather than crashing the engine!
     SUCCEED();
