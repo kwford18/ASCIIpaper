@@ -1,32 +1,33 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
 #include <SDL3/SDL_main.h>
+#include <format>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
-#include "engine/window.h"
-#include "engine/renderer.h"
-#include "engine/grid.h"
-#include "engine/timer.h"
 #include "engine/config.h"
+#include "engine/grid.h"
+#include "engine/renderer.h"
 #include "engine/scene_manager.h"
+#include "engine/timer.h"
+#include "engine/window.h"
 
+#include "platform/desktop.h"
 #include "worlds/aquarium.h"
 #include "worlds/city.h"
-#include "platform/desktop.h"
 
 // Helper function to safely overwrite a specific key in config.ini
-void UpdateConfigFile(const std::string& configPath, const std::string& key, const std::string& value) {
+void UpdateConfigFile(const std::string& configPath, const std::string& key,
+                      const std::string& value) {
     std::vector<std::string> lines;
     std::ifstream inFile(configPath);
     bool found = false;
     std::string line;
-    
+
     if (inFile.is_open()) {
         while (std::getline(inFile, line)) {
-            // Check if the line starts with our key (ignoring partial matches like "fish_speed" if we search for "fish")
-            if (line.find(key) == 0 && (line[key.length()] == ' ' || line[key.length()] == '=')) { 
-                lines.push_back(key + " = " + value);
+            if (line.find(key) == 0 && (line[key.length()] == ' ' || line[key.length()] == '=')) {
+                lines.push_back(std::format("{} = {}", key, value));
                 found = true;
             } else {
                 lines.push_back(line);
@@ -34,10 +35,10 @@ void UpdateConfigFile(const std::string& configPath, const std::string& key, con
         }
         inFile.close();
     }
-    
+
     // If the key wasn't in the file at all, append it to the bottom
     if (!found) {
-        lines.push_back(key + " = " + value);
+        lines.push_back(std::format("{} = {}", key, value));
     }
 
     std::ofstream outFile(configPath);
@@ -49,8 +50,8 @@ void UpdateConfigFile(const std::string& configPath, const std::string& key, con
 int main(int argc, char* argv[]) {
     // Get configuration file path
     std::string configPath = "config.ini";
-    const char* basePath = SDL_GetBasePath(); 
-    
+    const char* basePath = SDL_GetBasePath();
+
     if (basePath) {
         configPath = std::string(basePath) + "config.ini";
     }
@@ -60,7 +61,7 @@ int main(int argc, char* argv[]) {
     if (argc >= 3 && std::string(argv[1]) == "set") {
         std::string key = argv[2];
         std::string value = (argc >= 4) ? argv[3] : "";
-        
+
         UpdateConfigFile(configPath, key, value);
         std::cout << "Success: Set '" << key << "' to '" << value << "'\n";
         return 0; // Exit so we don't accidentally launch a second engine instance
@@ -77,14 +78,16 @@ int main(int argc, char* argv[]) {
 
     // Create window and attach to background
     ASCIIpaper::Engine::Window window("ASCIIpaper", 1920, 1080);
-    if (!window.Initialize()) return -1;
-    
+    if (!window.Initialize())
+        return -1;
+
     ASCIIpaper::Platform::AttachToDesktop(window.GetNativeWindow());
 
     ASCIIpaper::Engine::Renderer renderer(window.GetNativeWindow());
-    if (!renderer.Initialize()) return -1;
+    if (!renderer.Initialize())
+        return -1;
 
-    ASCIIpaper::Engine::CharacterGrid grid(120, 67); 
+    ASCIIpaper::Engine::CharacterGrid grid(120, 67);
     ASCIIpaper::Engine::SceneManager sceneManager;
 
     /*
@@ -106,12 +109,10 @@ int main(int argc, char* argv[]) {
         // Load selected scene
         if (activeScene == "city") {
             sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::CityScene>(
-                120, 67, carCount, starCount, weatherMode, systemSync
-            ));
+                120, 67, carCount, starCount, weatherMode, systemSync));
         } else {
             sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::AquariumScene>(
-                120, 67, fishCount, bubbleCount, jellyCount, systemSync
-            ));
+                120, 67, fishCount, bubbleCount, jellyCount, systemSync));
         }
     };
 
@@ -125,7 +126,7 @@ int main(int argc, char* argv[]) {
 
     // Main Engine Loop
     while (!window.ShouldClose() && !ASCIIpaper::Platform::ShouldQuit()) {
-        
+
         // Hot Reload the scene
         if (ASCIIpaper::Platform::HasConfigChanged()) {
             ASCIIpaper::Platform::ClearConfigChanged();

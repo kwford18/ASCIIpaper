@@ -7,6 +7,18 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ========== DEVELOPMENT AND TIDYING OPTIONS ==========
+
+# Windows Global API Definitions
+if(WIN32)
+    add_compile_definitions(
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _WIN32_WINNT=0x0601
+        WINVER=0x0601
+        _WIN32_IE=0x0600
+    )
+endif()
+
 # Stricter compiler warnings for development
 if(MSVC)
     add_compile_options(/W4 /EHsc) # MSVC strict warnings
@@ -63,6 +75,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Disable clang-tidy for GoogleTest and GoogleMock to avoid unnecessary warnings
+set_target_properties(gtest gtest_main gmock gmock_main PROPERTIES CXX_CLANG_TIDY "")
+
 # Fetch SDL3
 message(STATUS "Fetching SDL3 from source...")
 FetchContent_Declare(
@@ -76,6 +91,14 @@ set(SDL_TESTS OFF CACHE BOOL "Disable SDL3 tests" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL3 examples" FORCE)
 FetchContent_MakeAvailable(SDL3)
 
+# Disable clang-tidy for SDL3 to avoid unnecessary warnings
+if(TARGET SDL3-shared)
+    set_target_properties(SDL3-shared PROPERTIES CXX_CLANG_TIDY "")
+endif()
+
+if(TARGET SDL3-static)
+    set_target_properties(SDL3-static PROPERTIES CXX_CLANG_TIDY "")
+endif()
 # Core Engine Target
 add_library(Engine STATIC
     engine/grid.cpp
