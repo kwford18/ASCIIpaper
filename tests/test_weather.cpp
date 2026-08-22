@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include "engine/weather.h"
 #include "engine/grid.h"
+#include "engine/weather.h"
+#include <gtest/gtest.h>
 
 TEST(WeatherSystemTest, InitializesAndDrawsParticles) {
     ASCIIpaper::Engine::WeatherSystem weather;

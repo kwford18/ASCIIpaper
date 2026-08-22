@@ -1,13 +1,13 @@
-#include <gtest/gtest.h>
 #include "engine/scene_manager.h"
 #include "worlds/aquarium.h"
 #include "worlds/city.h"
+#include <gtest/gtest.h>
 
 using namespace ASCIIpaper::Engine;
 using namespace ASCIIpaper::Worlds;
 
 class SceneManagerTest : public ::testing::Test {
-protected:
+  protected:
     SceneManager manager;
 };
 
@@ -16,14 +16,11 @@ TEST_F(SceneManagerTest, InitializationIsEmpty) {
 }
 
 TEST_F(SceneManagerTest, CanLoadAndSwapScenes) {
-    // 1. Load Aquarium
+    // Load Aquarium
     manager.ChangeScene(std::make_unique<AquariumScene>(100, 50, 10, 5, 2, false));
     EXPECT_NE(manager.GetCurrentScene(), nullptr);
-    
-    // 2. Hot-Swap to City
+
+    // Hot swap to City
     manager.ChangeScene(std::make_unique<CityScene>(100, 50, 10, 20, "rain", false));
     EXPECT_NE(manager.GetCurrentScene(), nullptr);
-    
-    // Note: If memory leaks or double-frees occur during the swap, 
-    // GTest will catch the segmentation fault here!
 }

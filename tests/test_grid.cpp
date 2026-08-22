@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "engine/grid.h"
+#include <gtest/gtest.h>
 
 using namespace ASCIIpaper::Engine;
 
@@ -15,14 +15,14 @@ TEST(CharacterGridTest, Initialization) {
 
 TEST(CharacterGridTest, SetAndGetCell) {
     CharacterGrid grid(10, 10);
-    
+
     grid.SetCell(5, 5, 'X');
     EXPECT_EQ(grid.GetCell(5, 5).character, 'X');
 }
 
 TEST(CharacterGridTest, OutOfBoundsHandling) {
     CharacterGrid grid(10, 10);
-    
+
     // Setting out of bounds should not crash
     ASSERT_NO_THROW(grid.SetCell(-1, 5, 'A'));
     ASSERT_NO_THROW(grid.SetCell(10, 5, 'B'));
@@ -36,7 +36,7 @@ TEST(CharacterGridTest, OutOfBoundsHandling) {
 
 TEST(CharacterGridTest, ClearGrid) {
     CharacterGrid grid(5, 5);
-    
+
     grid.SetCell(2, 2, 'O');
     EXPECT_EQ(grid.GetCell(2, 2).character, 'O');
 
