@@ -1,5 +1,5 @@
-#include "engine/Window.h"
-#include <iostream>
+#include "engine/window.h"
+#include "engine/logger.h"
 
 namespace ASCIIpaper::Engine {
 
@@ -17,7 +17,7 @@ Window::~Window() {
 bool Window::Initialize() {
     // Initialize SDL3 Video Subsystem
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        std::cerr << "SDL_Init failed: " << SDL_GetError() << '\n';
+        ASCII_CERR << "SDL_Init failed: " << SDL_GetError() << '\n';
         return false;
     }
 
@@ -37,8 +37,8 @@ bool Window::Initialize() {
         m_width = displayBounds.w;
         m_height = displayBounds.h;
     } else {
-        std::cerr << "SDL_GetDisplayBounds failed: " << SDL_GetError()
-                  << ". Falling back to the size passed to the constructor." << '\n';
+        ASCII_CERR << "SDL_GetDisplayBounds failed: " << SDL_GetError()
+                   << ". Falling back to the size passed to the constructor." << '\n';
     }
 
     /*
@@ -50,7 +50,7 @@ bool Window::Initialize() {
      */
     m_window = SDL_CreateWindow(m_title.c_str(), m_width, m_height, SDL_WINDOW_BORDERLESS);
     if (!m_window) {
-        std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << '\n';
+        ASCII_CERR << "SDL_CreateWindow failed: " << SDL_GetError() << '\n';
         return false;
     }
 

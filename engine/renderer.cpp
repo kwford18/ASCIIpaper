@@ -1,5 +1,5 @@
 #include "engine/renderer.h"
-#include <iostream>
+#include "engine/logger.h"
 
 namespace ASCIIpaper::Engine {
 
@@ -16,7 +16,7 @@ bool Renderer::Initialize() {
     // Create the 2D rendering context
     m_renderer = SDL_CreateRenderer(m_window, nullptr);
     if (!m_renderer) {
-        std::cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << '\n';
+        ASCII_CERR << "SDL_CreateRenderer failed: " << SDL_GetError() << '\n';
         return false;
     }
     return true;

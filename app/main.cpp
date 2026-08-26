@@ -1,12 +1,12 @@
 #include <SDL3/SDL_main.h>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
 #include "engine/config.h"
 #include "engine/grid.h"
+#include "engine/logger.h"
 #include "engine/renderer.h"
 #include "engine/scene_manager.h"
 #include "engine/timer.h"
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
         std::string value = (argc >= 4) ? argv[3] : "";
 
         UpdateConfigFile(configPath, key, value);
-        std::cout << "Success: Set '" << key << "' to '" << value << "'\n";
+        ASCII_COUT << "Success: Set '" << key << "' to '" << value << "'\n";
         return 0; // Exit so we don't accidentally launch a second engine instance
     }
 
@@ -71,9 +71,9 @@ int main(int argc, char* argv[]) {
     // Load config and launch engine
     ASCIIpaper::Engine::Config config;
     if (config.Load(configPath)) {
-        std::cout << "Loaded config.ini successfully.\n";
+        ASCII_COUT << "Loaded config.ini successfully.\n";
     } else {
-        std::cout << "No config.ini found. Using default engine settings.\n";
+        ASCII_COUT << "No config.ini found. Using default engine settings.\n";
     }
 
     // Create window and attach to background

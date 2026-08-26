@@ -8,6 +8,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ========== DEVELOPMENT AND TIDYING OPTIONS ==========
 
+option(ASCII_DEBUG_MODE "Enable debugging tools, logging, and tests" OFF)
+
+if(ASCII_DEBUG_MODE)
+    add_compile_definitions(ASCII_DEBUG_MODE)
+endif()
+
 # Windows Global API Definitions
 if(WIN32)
     add_compile_definitions(

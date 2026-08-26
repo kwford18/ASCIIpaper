@@ -1,8 +1,8 @@
 #include "engine/config.h"
+#include "engine/logger.h"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 
 namespace ASCIIpaper::Engine {
@@ -20,8 +20,8 @@ bool Config::Load(const std::string& filename) {
     std::ifstream checkFile(filename);
     if (!checkFile.good()) {
         checkFile.close();
-        std::cout << "config.ini not found. Generating default configuration at: " << filename
-                  << '\n';
+        ASCII_COUT << "config.ini not found. Generating default configuration at: " << filename
+                   << '\n';
 
         std::ofstream newConfig(filename);
         if (newConfig.is_open()) {
@@ -45,7 +45,7 @@ bool Config::Load(const std::string& filename) {
             newConfig << "weather = storm\n";
             newConfig.close();
         } else {
-            std::cerr << "Failed to generate default config.ini!" << '\n';
+            ASCII_CERR << "Failed to generate default config.ini!" << '\n';
             return false;
         }
     } else {
@@ -84,7 +84,7 @@ int Config::GetInt(const std::string& key, int defaultValue) const {
         try {
             return std::stoi(it->second);
         } catch (const std::exception& e) {
-            std::cerr << "Config Parse Error: " << e.what() << '\n';
+            ASCII_CERR << "Config Parse Error: " << e.what() << '\n';
         }
     }
     return defaultValue;
@@ -96,7 +96,7 @@ float Config::GetFloat(const std::string& key, float defaultValue) const {
         try {
             return std::stof(it->second);
         } catch (const std::exception& e) {
-            std::cerr << "Config Parse Error: " << e.what() << '\n';
+            ASCII_CERR << "Config Parse Error: " << e.what() << '\n';
         }
     }
     return defaultValue;

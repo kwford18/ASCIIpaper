@@ -90,6 +90,7 @@ class AquariumScene : public Engine::Scene {
     // Clears all entities from the scene
     void ClearEntities();
 
+#ifdef ASCII_DEBUG_MODE
     // Exposed so unit tests can verify spawning
     size_t GetFishCount() const {
         return m_fishes.size();
@@ -100,6 +101,7 @@ class AquariumScene : public Engine::Scene {
     size_t GetJellyfishCount() const {
         return m_jellyfishes.size();
     }
+#endif
 
   private:
     int m_width;

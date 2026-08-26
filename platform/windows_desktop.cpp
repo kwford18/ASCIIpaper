@@ -7,6 +7,7 @@
 #include <shellapi.h>
 // clang-format on
 
+#include "engine/logger.h"
 #include "platform/desktop.h"
 
 #include <SDL3/SDL.h>
@@ -14,7 +15,6 @@
 #include <cwchar>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -295,6 +295,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
+#ifdef ASCII_DEBUG_MODE
 /*
  * DEBUG: walk WorkerW/Progman's children and print their class names
  * to see what specific Windows builds actually create, instead
@@ -303,7 +304,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
 BOOL CALLBACK DumpChildProc(HWND hwnd, LPARAM) {
     wchar_t className[256] = {0};
     GetClassNameW(hwnd, className, 256);
-    std::wcerr << L"    child hwnd=" << hwnd << L" class=" << className << '\n';
+    ASCII_WCERR << L"    child hwnd=" << hwnd << L" class=" << className << '\n';
     return TRUE;
 }
 
@@ -311,17 +312,18 @@ BOOL CALLBACK DumpTopLevelProc(HWND hwnd, LPARAM) {
     wchar_t className[256] = {0};
     GetClassNameW(hwnd, className, 256);
     if (wcscmp(className, L"WorkerW") == 0 || wcscmp(className, L"Progman") == 0) {
-        std::wcerr << L"top-level hwnd=" << hwnd << L" class=" << className << '\n';
+        ASCII_WCERR << L"top-level hwnd=" << hwnd << L" class=" << className << '\n';
         EnumChildWindows(hwnd, DumpChildProc, 0);
     }
     return TRUE;
 }
 
 void DumpDesktopHierarchy() {
-    std::cerr << "---- Desktop window hierarchy dump ----" << '\n';
+    ASCII_CERR << "---- Desktop window hierarchy dump ----" << '\n';
     EnumWindows(DumpTopLevelProc, 0);
-    std::cerr << "---- end dump ----" << '\n';
+    ASCII_CERR << "---- end dump ----" << '\n';
 }
+#endif
 
 /*
  * Some Windows builds put the real background WorkerW as a direct child of
@@ -353,14 +355,14 @@ void AttachToDesktop(SDL_Window* window) {
                                                 SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
 
     if (!sdlHwnd) {
-        std::cerr << "Failed to get native HWND from SDL_Window." << '\n';
+        ASCII_CERR << "Failed to get native HWND from SDL_Window." << '\n';
         return;
     }
 
     // Find the Program Manager
     HWND progman = FindWindowW(L"Progman", NULL);
     if (!progman) {
-        std::cerr << "Could not find Progman. GetLastError=" << GetLastError() << '\n';
+        ASCII_CERR << "Could not find Progman. GetLastError=" << GetLastError() << '\n';
         return;
     }
 
@@ -389,10 +391,12 @@ void AttachToDesktop(SDL_Window* window) {
      * in and which window to attach to.
      */
     if (workerW == NULL) {
-        std::cerr << "No sibling WorkerW found. Leaving window as a normal "
-                     "visible window instead of hiding it behind Progman."
-                  << '\n';
+#ifdef ASCII_DEBUG_MODE
+        ASCII_CERR << "No sibling WorkerW found. Leaving window as a normal "
+                      "visible window instead of hiding it behind Progman."
+                   << '\n';
         DumpDesktopHierarchy();
+#endif
         return;
     }
 
@@ -410,7 +414,7 @@ void AttachToDesktop(SDL_Window* window) {
 
     // Attach the SDL window directly to the desktop background
     if (!SetParent(sdlHwnd, workerW)) {
-        std::cerr << "SetParent failed. GetLastError=" << GetLastError() << '\n';
+        ASCII_CERR << "SetParent failed. GetLastError=" << GetLastError() << '\n';
         return;
     }
 
@@ -448,7 +452,8 @@ void AttachToDesktop(SDL_Window* window) {
      */
     g_trayHwnd = CreateTrayWindow();
     if (!g_trayHwnd) {
-        std::cerr << "Failed to create tray helper window. GetLastError=" << GetLastError() << '\n';
+        ASCII_CERR << "Failed to create tray helper window. GetLastError=" << GetLastError()
+                   << '\n';
     }
 
     g_trayIcon.cbSize = sizeof(NOTIFYICONDATAW);
@@ -480,7 +485,7 @@ void AttachToDesktop(SDL_Window* window) {
 
     g_trayIconAdded = Shell_NotifyIconW(NIM_ADD, &g_trayIcon);
     if (!g_trayIconAdded) {
-        std::cerr << "Failed to create tray icon. GetLastError=" << GetLastError() << '\n';
+        ASCII_CERR << "Failed to create tray icon. GetLastError=" << GetLastError() << '\n';
     } else {
         // Opt into modern notification-icon behavior (correct popup menu
         // positioning, etc.) instead of legacy pre-Vista behavior.
@@ -489,8 +494,8 @@ void AttachToDesktop(SDL_Window* window) {
     }
 
     if (!RegisterHotKey(g_trayHwnd, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
-        std::cerr << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError()
-                  << '\n';
+        ASCII_CERR << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError()
+                   << '\n';
     }
 
     // For CLI hot reloading, store the last write time of the config file at startup

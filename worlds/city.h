@@ -56,6 +56,7 @@ class CityScene : public Engine::Scene {
     void Update(float deltaTime) override;
     void Draw(Engine::CharacterGrid& grid) override;
 
+#ifdef ASCII_DEBUG_MODE
     // Exposed so unit tests can verify spawning
     int GetCarCount() const {
         return static_cast<int>(m_cars.size());
@@ -63,6 +64,7 @@ class CityScene : public Engine::Scene {
     int GetStarCount() const {
         return static_cast<int>(m_stars.size());
     }
+#endif
 
   private:
     int m_width;
