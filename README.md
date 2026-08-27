@@ -4,11 +4,28 @@ ASCIIpaper is a lightweight ASCII desktop wallpaper engine written in C++20. It 
 
 Currently, ASCIIpaper is strictly a Windows application.
 
-## Usage & Examples
+## Installation and Usage
 
-Run the compiled executable. ASCIIpaper will attach to the desktop background and create a system tray icon.
-* Right-click the tray icon to switch scenes, toggle weather and system sync, or exit the application.
-* To toggle the application on startup, use the provided `toggle_startup.ps1` PowerShell script.
+### Using the Pre-compiled Binary (Windows)
+1. Download and extract the latest release `.zip` file.
+2. Run `ASCIIpaper.exe`. The application will silently attach to your desktop background and create a system tray icon.
+3. Right-click the tray icon to switch scenes, toggle system sync, change weather (City only), or exit the application.
+4. To toggle the application on startup, use the provided `toggle_startup.ps1` PowerShell script.
+
+**Note on Windows Defender:** Because this is an unsigned open-source application, Windows Defender may flag the executable when you first launch it. This is expected without a commercial cryptographic certificate. To proceed, click **"More info"** and then **"Run anyway."**
+
+### Building from Source
+If you prefer to compile the engine yourself, you will need CMake and a C++20 compatible compiler.
+
+**Windows:**
+Clone the repository and run the following commands from the project root:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DASCII_DEBUG_MODE=OFF
+cmake --build build --config Release
+```
+
+Once the build finishes, the compiled executable and the required `SDL3.dll` will be located in your `build/` or `build/Release/` directory.
 
 **Aquarium Scene**
 ![Aquarium Simulation](assets/aquarium_example.gif)
