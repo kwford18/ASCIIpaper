@@ -66,13 +66,14 @@ ASCIIpaper generates a default `config.ini` file in the same directory as the ex
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| scene | string | The active environment (`aquarium` or `city`). |
+| scene | string | The active environment (`aquarium`, `city`, `random`). |
 | weather | string | Weather override (`none`, `rain`, `snow`, `storm`). |
 | target_fps | int | The target rendering framerate. |
 | system_sync | bool | Toggles CPU/RAM monitoring to dynamically affect simulation variables. |
 | fish_count | int | Aquarium: Base number of fish. |
 | bubble_count | int | Aquarium: Number of ambient bubbles. |
 | jellyfish_count | int | Aquarium: Number of jellyfish. |
+| shrimp_count | int | Aquarium: Number of shrimp. |
 | car_count | int | City: Base traffic density. |
 | star_count | int | City: Number of background stars. |
 
