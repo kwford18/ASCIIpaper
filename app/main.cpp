@@ -1,6 +1,7 @@
 #include <SDL3/SDL_main.h>
 #include <format>
 #include <fstream>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -101,10 +102,17 @@ int main(int argc, char* argv[]) {
         int fishCount = config.GetInt("fish_count", 6);
         int bubbleCount = config.GetInt("bubble_count", 15);
         int jellyCount = config.GetInt("jellyfish_count", 3);
+        int shrimpCount = config.GetInt("shrimp_count", 12);
         int carCount = config.GetInt("car_count", 12);
         int starCount = config.GetInt("star_count", 40);
         std::string weatherMode = config.GetString("weather", "rain");
         bool systemSync = config.GetBool("system_sync", false);
+
+        if (activeScene == "random") {
+            std::mt19937 rng(std::random_device{}());
+            std::uniform_int_distribution<int> dist(0, 1);
+            activeScene = (dist(rng) == 0) ? "aquarium" : "city";
+        }
 
         // Load selected scene
         if (activeScene == "city") {
@@ -112,7 +120,7 @@ int main(int argc, char* argv[]) {
                 120, 67, carCount, starCount, weatherMode, systemSync));
         } else {
             sceneManager.ChangeScene(std::make_unique<ASCIIpaper::Worlds::AquariumScene>(
-                120, 67, fishCount, bubbleCount, jellyCount, systemSync));
+                120, 67, fishCount, bubbleCount, jellyCount, shrimpCount, systemSync));
         }
     };
 

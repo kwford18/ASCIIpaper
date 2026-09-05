@@ -9,19 +9,22 @@ TEST(AquariumTest, HonorsConfigurationLimits) {
     int expectedFish = 15;
     int expectedBubbles = 5;
     int expectedJellies = 2;
+    int expectedShrimps = 3;
 
     // Create an Aquarium instance
-    AquariumScene scene(100, 50, expectedFish, expectedBubbles, expectedJellies, false);
+    AquariumScene scene(100, 50, expectedFish, expectedBubbles, expectedJellies, expectedShrimps,
+                        false);
 
     // The scene should strictly honor the configuration sizes
     EXPECT_EQ(scene.GetFishCount(), expectedFish);
     EXPECT_EQ(scene.GetBubbleCount(), expectedBubbles);
     EXPECT_EQ(scene.GetJellyfishCount(), expectedJellies);
+    EXPECT_EQ(scene.GetShrimpCount(), expectedShrimps);
 }
 
 TEST(AquariumTest, EntitiesUpdateOverTime) {
     // Spin up an aquarium with just 1 moving fish
-    AquariumScene scene(100, 50, 1, 0, 0, false);
+    AquariumScene scene(100, 50, 1, 0, 0, 0, false);
     CharacterGrid gridBefore(100, 50);
     CharacterGrid gridAfter(100, 50);
 

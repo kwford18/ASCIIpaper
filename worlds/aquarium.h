@@ -79,7 +79,7 @@ struct Shrimp {
 class AquariumScene : public Engine::Scene {
   public:
     AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount,
-                  bool systemSync);
+                  int shrimpCount, bool systemSync);
 
     // Processes simulation logic (fish swimming, bubbles rising)
     void Update(float deltaTime) override;
@@ -100,6 +100,10 @@ class AquariumScene : public Engine::Scene {
     }
     size_t GetJellyfishCount() const {
         return m_jellyfishes.size();
+    }
+
+    size_t GetShrimpCount() const {
+        return m_shrimps.size();
     }
 #endif
 
@@ -129,7 +133,7 @@ class AquariumScene : public Engine::Scene {
     std::mt19937 m_rng;
 
     // Helper to spawn initial entities
-    void InitializeWorld(int fishCount, int bubbleCount, int jellyCount);
+    void InitializeWorld(int fishCount, int bubbleCount, int jellyCount, int shrimpCount);
 
     // Modular update helpers
     void UpdateSystemMonitor(float deltaTime, float& cpuMultiplier, float& ramMultiplier);

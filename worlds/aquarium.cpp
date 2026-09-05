@@ -8,10 +8,10 @@
 namespace ASCIIpaper::Worlds {
 
 AquariumScene::AquariumScene(int width, int height, int fishCount, int bubbleCount, int jellyCount,
-                             bool systemSync)
+                             int shrimpCount, bool systemSync)
     : m_width(width), m_height(height), m_timeAccumulator(0.0f), m_baseFishCount(fishCount),
       m_systemSync(systemSync), m_rng(std::random_device{}()) {
-    InitializeWorld(fishCount, bubbleCount, jellyCount);
+    InitializeWorld(fishCount, bubbleCount, jellyCount, shrimpCount);
 }
 
 void AquariumScene::ClearEntities() {
@@ -23,7 +23,8 @@ void AquariumScene::ClearEntities() {
     m_shrimps.clear();
 }
 
-void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCount) {
+void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCount,
+                                    int shrimpCount) {
     // Setup random distributions to keep entities inside the boundaries
     float maxX = std::max(2.1f, static_cast<float>(m_width) - 5.0f);
     std::uniform_real_distribution<float> xDist(2.0f, maxX);
@@ -122,7 +123,7 @@ void AquariumScene::InitializeWorld(int fishCount, int bubbleCount, int jellyCou
 
     // Spawn shrimp
     std::uniform_real_distribution<float> sSpeedDist(0.5f, 2.0f);
-    for (int i = 0; i < 12; ++i) {
+    for (int i = 0; i < shrimpCount; ++i) {
         char sym = (dirDist(m_rng) == 0) ? 'j' : ',';
         m_shrimps.push_back({xDist(m_rng), yDist(m_rng), sSpeedDist(m_rng), sSpeedDist(m_rng),
                              phaseDist(m_rng), sym});

@@ -17,7 +17,7 @@ TEST_F(SceneManagerTest, InitializationIsEmpty) {
 
 TEST_F(SceneManagerTest, CanLoadAndSwapScenes) {
     // Load Aquarium
-    manager.ChangeScene(std::make_unique<AquariumScene>(100, 50, 10, 5, 2, false));
+    manager.ChangeScene(std::make_unique<AquariumScene>(100, 50, 10, 5, 2, 12, false));
     EXPECT_NE(manager.GetCurrentScene(), nullptr);
 
     // Hot swap to City

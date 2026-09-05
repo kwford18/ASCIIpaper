@@ -37,7 +37,8 @@ bool Config::Load(const std::string& filename) {
             newConfig << "# Aquarium config variables\n";
             newConfig << "fish_count = 6\n";
             newConfig << "bubble_count = 15\n";
-            newConfig << "jellyfish_count = 3\n\n";
+            newConfig << "jellyfish_count = 3\n";
+            newConfig << "shrimp_count = 12\n\n";
 
             newConfig << "# City config variables\n";
             newConfig << "car_count = 12\n";
