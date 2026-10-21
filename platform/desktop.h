@@ -7,7 +7,7 @@ namespace ASCIIpaper::Platform {
 // and forces it to draw as the desktop background.
 void AttachToDesktop(SDL_Window* window);
 bool ShouldQuit();
-void ShutdownDesktopIntegration();
+void ShutdownDesktopIntegration(SDL_Window* window);
 
 // For hot config reloads
 bool HasConfigChanged();

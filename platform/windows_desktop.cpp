@@ -347,14 +347,86 @@ HWND FindTargetWorkerW(HWND progman) {
         return nested;
     }
 
+    // Shape 3: Fallback to Progman itself if SHELLDLL_DefView is inside it
+    if (FindWindowExW(progman, NULL, L"SHELLDLL_DefView", NULL) != NULL) {
+        return progman;
+    }
+
     return NULL;
 }
 
+/*
+ * Set up a way to actually stop the program: a system tray icon with
+ * an Exit option, plus a Ctrl+Alt+Q global hotkey as a backup. Since
+ * this window has no border, no taskbar entry, and is click-through,
+ * there'd otherwise be no way to close it short of Task Manager.
+ */
+static void SetupTrayAndHotkey() {
+    if (g_trayHwnd)
+        return; // Already initialized
+
+    g_trayHwnd = CreateTrayWindow();
+    if (!g_trayHwnd) {
+        ASCII_CERR << "Failed to create tray helper window. GetLastError=" << GetLastError()
+                   << '\n';
+    }
+
+    g_trayIcon.cbSize = sizeof(NOTIFYICONDATAW);
+    g_trayIcon.hWnd = g_trayHwnd; // must be the helper window, not the WS_CHILD wallpaper window
+    g_trayIcon.uID = TRAY_UID;
+    g_trayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    g_trayIcon.uCallbackMessage = WM_TRAYICON;
+    g_trayIcon.hIcon = ExtractIconW(GetModuleHandle(NULL), L"ASCIIpaper.exe", 0);
+
+    /*
+     * Use MAKEINTRESOURCEW with the raw resource ID (32512 = IDI_APPLICATION)
+     * instead of the IDI_APPLICATION macro directly: that macro expands to
+     * the ANSI (LPSTR) form unless the project defines UNICODE/_UNICODE,
+     * which doesn't match LoadIconW's LPCWSTR parameter.
+     */
+    if (g_trayIcon.hIcon == NULL) {
+        g_trayIcon.hIcon = LoadIconW(NULL, MAKEINTRESOURCEW(32512));
+    }
+
+    wcsncpy_s(g_trayIcon.szTip, L"ASCIIpaper Settings", _TRUNCATE);
+
+    /*
+     * Defensively remove any stale icon left behind by a previous run that
+     * crashed or got killed before ShutdownDesktopIntegration() could run.
+     * A leftover registration can otherwise make the new NIM_ADD misbehave.
+     */
+    Shell_NotifyIconW(NIM_DELETE, &g_trayIcon);
+    g_trayIconAdded = Shell_NotifyIconW(NIM_ADD, &g_trayIcon);
+
+    if (!g_trayIconAdded) {
+        ASCII_CERR << "Failed to create tray icon. GetLastError=" << GetLastError() << '\n';
+    } else {
+        // Opt into modern notification-icon behavior (correct popup menu
+        // positioning, etc.) instead of legacy pre-Vista behavior.
+        g_trayIcon.uVersion = NOTIFYICON_VERSION_4;
+        Shell_NotifyIconW(NIM_SETVERSION, &g_trayIcon);
+    }
+
+    if (!RegisterHotKey(g_trayHwnd, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
+        ASCII_CERR << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError()
+                   << '\n';
+    }
+
+    // For CLI hot reloading, store the last write time of the config file at startup
+    std::error_code ec;
+    g_lastWriteTime = std::filesystem::last_write_time(GetConfigPath(), ec);
+}
+
+static HWND g_attachedParent = nullptr;
+
 void AttachToDesktop(SDL_Window* window) {
+    // Always initialize the tray icon and hotkey FIRST so the app can always be quit,
+    // even if WorkerW attachment fails and returns early below.
+    SetupTrayAndHotkey();
+
     // Ask SDL3 to give the OS-level Windows Handle (HWND) for window
     HWND sdlHwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window),
                                                 SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
-
     if (!sdlHwnd) {
         ASCII_CERR << "Failed to get native HWND from SDL_Window." << '\n';
         return;
@@ -377,8 +449,8 @@ void AttachToDesktop(SDL_Window* window) {
     HWND workerW = NULL;
     for (int attempt = 0; attempt < 5 && workerW == NULL; ++attempt) {
         DWORD_PTR result = 0;
+        SendMessageTimeoutW(progman, 0x052C, 0xD, 0x1, SMTO_NORMAL, 1000, &result);
         SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &result);
-
         workerW = FindTargetWorkerW(progman);
         if (workerW == NULL)
             Sleep(50);
@@ -401,6 +473,8 @@ void AttachToDesktop(SDL_Window* window) {
         return;
     }
 
+    g_attachedParent = workerW;
+
     /*
      * Just SetParent does not make this a proper child window.
      * The SDL window was created as a top-level WS_POPUP window, and
@@ -409,7 +483,8 @@ void AttachToDesktop(SDL_Window* window) {
      * Without this, the window doesn't composite into WorkerW's client area.
      */
     LONG_PTR style = GetWindowLongPtrW(sdlHwnd, GWL_STYLE);
-    style &= ~WS_POPUP;
+    style &=
+        ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
     style |= WS_CHILD;
     SetWindowLongPtrW(sdlHwnd, GWL_STYLE, style);
 
@@ -426,7 +501,7 @@ void AttachToDesktop(SDL_Window* window) {
      */
     RECT parentRect;
     GetClientRect(workerW, &parentRect);
-    SetWindowPos(sdlHwnd, HWND_BOTTOM, 0, 0, parentRect.right - parentRect.left,
+    SetWindowPos(sdlHwnd, HWND_TOP, 0, 0, parentRect.right - parentRect.left,
                  parentRect.bottom - parentRect.top, SWP_FRAMECHANGED | SWP_NOACTIVATE);
     ShowWindow(sdlHwnd, SW_SHOW);
 
@@ -441,70 +516,43 @@ void AttachToDesktop(SDL_Window* window) {
      * caused the window to disappear after reparenting.
      */
     LONG exStyle = GetWindowLongW(sdlHwnd, GWL_EXSTYLE);
-    SetWindowLongW(sdlHwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW);
+    SetWindowLongW(sdlHwnd, GWL_EXSTYLE,
+                   exStyle | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
     SetWindowPos(sdlHwnd, NULL, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE);
-
-    /*
-     * Set up a way to actually stop the program: a system tray icon with
-     * an Exit option, plus a Ctrl+Alt+Q global hotkey as a backup. Since
-     * this window has no border, no taskbar entry, and is click-through,
-     * there'd otherwise be no way to close it short of Task Manager.
-     */
-    g_trayHwnd = CreateTrayWindow();
-    if (!g_trayHwnd) {
-        ASCII_CERR << "Failed to create tray helper window. GetLastError=" << GetLastError()
-                   << '\n';
-    }
-
-    g_trayIcon.cbSize = sizeof(NOTIFYICONDATAW);
-    g_trayIcon.hWnd = g_trayHwnd; // must be the helper window, not the WS_CHILD wallpaper window
-    g_trayIcon.uID = TRAY_UID;
-    g_trayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    g_trayIcon.uCallbackMessage = WM_TRAYICON;
-
-    g_trayIcon.hIcon = ExtractIconW(GetModuleHandle(NULL), L"ASCIIpaper.exe", 0);
-
-    /*
-     * Use MAKEINTRESOURCEW with the raw resource ID (32512 = IDI_APPLICATION)
-     * instead of the IDI_APPLICATION macro directly: that macro expands to
-     * the ANSI (LPSTR) form unless the project defines UNICODE/_UNICODE,
-     * which doesn't match LoadIconW's LPCWSTR parameter.
-     */
-    if (g_trayIcon.hIcon == NULL) {
-        g_trayIcon.hIcon = LoadIconW(NULL, MAKEINTRESOURCEW(32512));
-    }
-
-    wcsncpy_s(g_trayIcon.szTip, L"ASCIIpaper Settings", _TRUNCATE);
-
-    /*
-     * Defensively remove any stale icon left behind by a previous run that
-     * crashed or got killed before ShutdownDesktopIntegration() could run.
-     * A leftover registration can otherwise make the new NIM_ADD misbehave.
-     */
-    Shell_NotifyIconW(NIM_DELETE, &g_trayIcon);
-
-    g_trayIconAdded = Shell_NotifyIconW(NIM_ADD, &g_trayIcon);
-    if (!g_trayIconAdded) {
-        ASCII_CERR << "Failed to create tray icon. GetLastError=" << GetLastError() << '\n';
-    } else {
-        // Opt into modern notification-icon behavior (correct popup menu
-        // positioning, etc.) instead of legacy pre-Vista behavior.
-        g_trayIcon.uVersion = NOTIFYICON_VERSION_4;
-        Shell_NotifyIconW(NIM_SETVERSION, &g_trayIcon);
-    }
-
-    if (!RegisterHotKey(g_trayHwnd, HOTKEY_ID_QUIT, MOD_CONTROL | MOD_ALT, 'Q')) {
-        ASCII_CERR << "Failed to register Ctrl+Alt+Q hotkey. GetLastError=" << GetLastError()
-                   << '\n';
-    }
-
-    // For CLI hot reloading, store the last write time of the config file at startup
-    std::error_code ec;
-    g_lastWriteTime = std::filesystem::last_write_time(GetConfigPath(), ec);
 }
 
-void ShutdownDesktopIntegration() {
+void ShutdownDesktopIntegration(SDL_Window* window) {
+    if (window) {
+        HWND sdlHwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window),
+                                                    SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        if (sdlHwnd) {
+            ShowWindow(sdlHwnd, SW_HIDE);
+            SetParent(sdlHwnd, NULL);
+            LONG_PTR style = GetWindowLongPtrW(sdlHwnd, GWL_STYLE);
+            style &= ~WS_CHILD;
+            style |= WS_POPUP;
+            SetWindowLongPtrW(sdlHwnd, GWL_STYLE, style);
+        }
+    }
+
+    // Explicitly query Windows registry for the current wallpaper path and re-apply it
+    wchar_t wallpaperPath[MAX_PATH] = {};
+    SystemParametersInfoW(SPI_GETDESKWALLPAPER, MAX_PATH, wallpaperPath, 0);
+    if (wcslen(wallpaperPath) > 0) {
+        SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, wallpaperPath,
+                              SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+    } else {
+        // Fallback if registry read fails
+        SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, SETWALLPAPER_DEFAULT, SPIF_SENDCHANGE);
+    }
+
+    if (g_attachedParent) {
+        InvalidateRect(g_attachedParent, NULL, TRUE);
+        UpdateWindow(g_attachedParent);
+        g_attachedParent = nullptr;
+    }
+
     if (g_trayIconAdded) {
         Shell_NotifyIconW(NIM_DELETE, &g_trayIcon);
         g_trayIconAdded = false;

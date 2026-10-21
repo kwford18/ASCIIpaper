@@ -149,6 +149,6 @@ int main(int argc, char* argv[]) {
         timer.Tick();
     }
 
-    ASCIIpaper::Platform::ShutdownDesktopIntegration();
+    ASCIIpaper::Platform::ShutdownDesktopIntegration(window.GetNativeWindow());
     return 0;
 }
